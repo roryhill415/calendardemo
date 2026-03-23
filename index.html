@@ -1,0 +1,1060 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: sans-serif; background: #fff; color: #111; }
+.dash { padding: 1.5rem; max-width: 1300px; }
+.tabs { display: flex; border-bottom: 1px solid #e5e5e5; margin-bottom: 1.5rem; }
+.tab { padding: 10px 24px; font-size: 14px; cursor: pointer; border-bottom: 2px solid transparent; color: #666; background: none; border-top: none; border-left: none; border-right: none; }
+.tab.active { color: #185FA5; border-bottom: 2px solid #185FA5; font-weight: 500; }
+.cards4 { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; margin-bottom: 1.5rem; }
+.card { background: #f5f5f5; border-radius: 8px; padding: 1rem; border-top: 3px solid #185FA5; }
+.card-label { font-size: 12px; color: #666; margin-bottom: 6px; }
+.card-value { font-size: 20px; font-weight: 500; color: #111; }
+.card-sub { font-size: 12px; color: #666; margin-top: 4px; }
+.card-up { color: #185FA5; }
+.card-down { color: #A32D2D; }
+.overview-body { display: grid; grid-template-columns: 1fr 280px; gap: 1.5rem; }
+.table-wrap { background: #fff; border: 0.5px solid #e5e5e5; border-radius: 12px; overflow: hidden; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead th { background: #0C447C; padding: 10px 14px; text-align: left; font-weight: 500; color: #fff; font-size: 12px; border-bottom: 0.5px solid #0a3a6a; }
+thead th:not(:first-child) { text-align: right; }
+tbody td { padding: 10px 14px; border-bottom: 0.5px solid #e5e5e5; color: #111; }
+tbody td:not(:first-child) { text-align: right; }
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:hover { background: #f5f5f5; }
+.change-pos { color: #185FA5; font-weight: 500; }
+.change-neg { color: #A32D2D; font-weight: 500; }
+.change-zero { color: #666; }
+.right-col { display: flex; flex-direction: column; gap: 10px; }
+.insight-box { background: #fff; border: 0.5px solid #e5e5e5; border-radius: 12px; padding: 14px; }
+.insight-label { font-size: 11px; font-weight: 500; color: #185FA5; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+.insight-text { font-size: 12px; color: #666; line-height: 1.5; }
+.chart-section { background: #fff; border: 0.5px solid #e5e5e5; border-radius: 12px; padding: 1.25rem; margin-bottom: 1.5rem; }
+.delta-cards { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; }
+.delta-card { background: #fff; border: 0.5px solid #e5e5e5; border-left: 3px solid #185FA5; border-radius: 8px; padding: 12px; }
+.delta-name { font-size: 11px; color: #666; margin-bottom: 4px; }
+.delta-hours { font-size: 11px; color: #888; margin-bottom: 4px; }
+.delta-val { font-size: 18px; font-weight: 500; }
+.hidden { display: none; }
+.cal-outer { overflow-x: auto; }
+.cal-container { display: flex; min-width: 900px; border: 0.5px solid #e5e5e5; border-radius: 12px; overflow: hidden; }
+.cal-times { flex-shrink: 0; width: 52px; background: #fafafa; border-right: 0.5px solid #e5e5e5; }
+.cal-time-header { height: 36px; background: #0C447C; border-bottom: 0.5px solid rgba(255,255,255,0.15); }
+.cal-time-label { height: 48px; font-size: 10px; color: #999; text-align: right; padding-right: 6px; padding-top: 4px; border-bottom: 0.5px solid #f0f0f0; }
+.cal-days { display: flex; flex: 1; }
+.cal-day { flex: 1; border-right: 0.5px solid #e5e5e5; min-width: 0; }
+.cal-day:last-child { border-right: none; }
+.cal-day-header { height: 36px; background: #0C447C; color: #fff; text-align: center; font-size: 11px; font-weight: 500; display: flex; align-items: center; justify-content: center; border-right: 0.5px solid rgba(255,255,255,0.15); }
+.cal-day-body { position: relative; }
+.cal-hour-line { position: absolute; left: 0; right: 0; height: 48px; border-bottom: 0.5px solid #f0f0f0; }
+.cal-event { position: absolute; border-radius: 4px; padding: 3px 4px; font-size: 10px; overflow: hidden; border: 1px solid rgba(255,255,255,0.3); }
+.cal-event-title { font-weight: 500; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.3; }
+.cal-event-time { color: rgba(255,255,255,0.85); font-size: 9px; }
+.cal-event-cats { font-size: 9px; color: rgba(255,255,255,0.75); }
+.legend { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 1rem; }
+.legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #555; }
+.legend-swatch { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+.week-toggle { display: flex; gap: 8px; margin-bottom: 1rem; }
+.week-btn { padding: 6px 18px; font-size: 13px; border: 0.5px solid #e5e5e5; border-radius: 6px; cursor: pointer; background: #fff; color: #666; }
+.week-btn.active { background: #0C447C; color: #fff; border-color: #0C447C; font-weight: 500; }
+</style>
+</head>
+<body>
+<div class="dash">
+  <div style="background:#0C447C;margin:-1.5rem -1.5rem 1.25rem -1.5rem;padding:1.25rem 1.5rem;">
+    <div style="font-size:18px;font-weight:500;color:#fff;">Executive calendar dashboard</div>
+    <div style="font-size:13px;color:rgba(255,255,255,0.7);margin-top:4px;">Week of March 23 – 29, 2026</div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('overview',this)">Overview</button>
+    <button class="tab" onclick="showTab('timechart',this)">Time chart</button>
+    <div style="flex:1;"></div>
+    <button class="tab" onclick="showTab('maintenance',this)" title="Maintenance" style="font-size:16px;padding:10px 16px;">⚙</button>
+  </div>
+
+  <div id="tab-overview">
+    <div class="cards4" id="cards-overview"></div>
+    <div class="overview-body">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Category</th><th>Last week</th><th>This week</th><th>Change</th></tr></thead>
+          <tbody id="cat-table"></tbody>
+        </table>
+      </div>
+      <div class="right-col" id="insight-boxes"></div>
+    </div>
+  </div>
+
+  <div id="tab-timechart" class="hidden">
+    <div class="cards4" id="cards-timechart"></div>
+    <div class="chart-section">
+      <div style="display:flex;gap:20px;margin-bottom:12px;font-size:12px;color:#666;">
+        <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:2px;background:#378ADD;display:inline-block;"></span>Last week</span>
+        <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:2px;background:#0C447C;display:inline-block;"></span>This week</span>
+      </div>
+      <div style="position:relative;width:100%;height:320px;"><canvas id="barChart"></canvas></div>
+    </div>
+    <div class="delta-cards" id="delta-cards"></div>
+  </div>
+
+  <div id="tab-maintenance" class="hidden">
+    <div style="display:flex;gap:0;border-bottom:0.5px solid #e5e5e5;margin-bottom:1.5rem;">
+      <button class="tab active" id="mtab-schedule-btn" onclick="showMTab('schedule',this)" style="font-size:13px;padding:8px 20px;">Schedule</button>
+      <button class="tab" id="mtab-data-btn" onclick="showMTab('data',this)" style="font-size:13px;padding:8px 20px;">Data</button>
+      <button class="tab" id="mtab-rules-btn" onclick="showMTab('rules',this)" style="font-size:13px;padding:8px 20px;">Rules</button>
+    </div>
+
+    <div id="mtab-schedule">
+      <div class="week-toggle">
+        <button class="week-btn active" onclick="switchWeek('this',this)">This week — Mar 23–29</button>
+        <button class="week-btn" onclick="switchWeek('last',this)">Last week — Mar 16–22</button>
+      </div>
+      <div class="legend" id="cal-legend"></div>
+      <div class="cal-outer">
+        <div class="cal-container" id="cal-container"></div>
+      </div>
+    </div>
+
+    <div id="mtab-data" class="hidden">
+      <div class="week-toggle">
+        <button class="week-btn active" onclick="switchDataWeek('this',this)">This week — Mar 23–29</button>
+        <button class="week-btn" onclick="switchDataWeek('last',this)">Last week — Mar 16–22</button>
+      </div>
+      <div class="table-wrap" id="data-table-wrap"></div>
+    </div>
+
+    <div id="mtab-rules" class="hidden">
+      <div style="max-width:800px;">
+        <div style="font-size:13px;color:#666;margin-bottom:1.25rem;line-height:1.6;">
+          Rules are applied to every meeting before AI categorization. All matching rules are applied — a meeting can match multiple rules and receive multiple categories. They persist between sessions.
+        </div>
+
+        <div style="background:#f5f5f5;border-radius:12px;padding:1.25rem;margin-bottom:1.5rem;">
+          <div style="font-size:13px;font-weight:500;margin-bottom:1rem;color:#111;">Add new rule</div>
+          <div id="rule-conditions">
+            <!-- Conditions added dynamically -->
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap;">
+            <button onclick="addRuleCondition()" style="padding:5px 12px;border:0.5px solid #ddd;border-radius:6px;font-size:12px;background:#fff;cursor:pointer;color:#555;">+ Add condition</button>
+            <div style="display:flex;align-items:center;gap:8px;margin-left:auto;">
+              <div style="font-size:11px;color:#666;">Assign to</div>
+              <select id="rule-cat" style="padding:8px 10px;border:0.5px solid #ddd;border-radius:6px;font-size:13px;background:#fff;">
+                <option value="Uncategorized">Uncategorized</option>
+              </select>
+              <button onclick="addRule()" style="padding:8px 18px;background:#0C447C;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;">Add rule</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table id="rules-table">
+            <thead><tr><th>Conditions (ALL must match)</th><th>Category</th><th style="text-align:center;">Action</th></tr></thead>
+            <tbody id="rules-tbody"></tbody>
+          </table>
+        </div>
+        <div id="rules-empty" style="text-align:center;padding:2rem;color:#999;font-size:13px;display:none;">No rules yet — add one above.</div>
+
+        <div style="margin-top:2rem;">
+          <div style="font-size:15px;font-weight:500;color:#111;margin-bottom:4px;">Recurring meetings</div>
+          <div style="font-size:13px;color:#666;margin-bottom:1.25rem;">Add recurring meetings by title keyword. Any meeting whose title contains the keyword will be assigned the selected category.</div>
+
+          <div style="background:#f5f5f5;border-radius:12px;padding:1.25rem;margin-bottom:1.5rem;">
+            <div style="font-size:13px;font-weight:500;margin-bottom:1rem;color:#111;">Add recurring meeting</div>
+            <div style="display:grid;grid-template-columns:2fr 1fr auto;gap:10px;align-items:end;">
+              <div>
+                <div style="font-size:11px;color:#666;margin-bottom:4px;">Meeting title (or keyword)</div>
+                <input id="recur-title" type="text" placeholder="e.g. Bi-Weekly Update, Investment Team" style="width:100%;padding:8px 10px;border:0.5px solid #ddd;border-radius:6px;font-size:13px;" />
+              </div>
+              <div>
+                <div style="font-size:11px;color:#666;margin-bottom:4px;">Category</div>
+                <select id="recur-cat" style="width:100%;padding:8px 10px;border:0.5px solid #ddd;border-radius:6px;font-size:13px;background:#fff;">
+                  <option value="Uncategorized">Uncategorized</option>
+                </select>
+              </div>
+              <button onclick="addRecurring()" style="padding:8px 18px;background:#0C447C;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;height:36px;">Add</button>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Meeting title / keyword</th><th>Category</th><th style="text-align:center;">Action</th></tr></thead>
+              <tbody id="recur-tbody"></tbody>
+            </table>
+          </div>
+          <div id="recur-empty" style="text-align:center;padding:2rem;color:#999;font-size:13px;">No recurring meetings added yet.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const CAT_COLORS = {
+  'AI':            '#1A6FBF',
+  'Fundraising':   '#B5451B',
+  'Co. Alpha':     '#1E8449',
+  'Co. Beta':      '#7D3C98',
+  'Co. Gamma':     '#B7950B',
+  'Co. Delta':     '#1F618D',
+  'Co. Epsilon':   '#117A65',
+  'Co. Zeta':      '#C0392B',
+  'Deployment':    '#6E2F8E',
+  'CEO Searches':  '#A04000',
+  'Firm Related':  '#1A5276',
+  'Personal':      '#717D7E',
+  'Board Meetings':'#922B21',
+};
+const categories = Object.keys(CAT_COLORS);
+
+// ── Synthetic attendee data (name + email) ───────────────────────────────────
+const p = (name, email) => ({ name, email });
+const ATTENDEES = {
+  'AI strategy kickoff':         [p('Sarah Chen','schen@mycompany.com'), p('Marcus Webb','mwebb@mycompany.com'), p('Priya Nair','pnair@mycompany.com'), p('Tom Okafor','tokafor@mycompany.com'), p('Diana Reyes','dreyes@mycompany.com')],
+  'LP update prep call':         [p('James Harlow','jharlow@mycompany.com'), p('Elena Voss','evoss@mycompany.com')],
+  'Co. Alpha check-in':          [p('Ryan Cho','rcho@alpha.com'), p('Natalie Berg','nberg@alpha.com'), p('Felix Dumont','fdumont@alpha.com')],
+  'CEO Search debrief':          [p('Claire Sutton','csutton@mycompany.com'), p('Andrew Miles','amiles@mycompany.com')],
+  'Firm weekly standup':         [p('James Harlow','jharlow@mycompany.com'), p('Claire Sutton','csutton@mycompany.com'), p('Marcus Webb','mwebb@mycompany.com'), p('Priya Nair','pnair@mycompany.com'), p('Tom Okafor','tokafor@mycompany.com'), p('Diana Reyes','dreyes@mycompany.com')],
+  'Co. Beta intro call':         [p('Sophie Laurent','slaurent@beta.com'), p('Kevin Park','kpark@beta.com'), p('Mia Torres','mtorres@beta.com')],
+  'Board meeting prep':          [p('James Harlow','jharlow@mycompany.com'), p('Elena Voss','evoss@mycompany.com'), p('Andrew Miles','amiles@mycompany.com')],
+  'Co. Beta quarterly review':   [p('Sophie Laurent','slaurent@beta.com'), p('Kevin Park','kpark@beta.com')],
+  'LP roadshow call':            [p('James Harlow','jharlow@mycompany.com'), p('David Kim','dkim@lpfund.com'), p('Rachel Stern','rstern@lpfund.com')],
+  'AI vendor demo':              [p('Marcus Webb','mwebb@mycompany.com'), p('Priya Nair','pnair@mycompany.com'), p('Vendor Rep','rep@aivendor.com')],
+  'Deployment sync':             [p('Tom Okafor','tokafor@mycompany.com'), p('Marcus Webb','mwebb@mycompany.com'), p('Lena Fischer','lfischer@mycompany.com')],
+  'CEO Search candidate review': [p('Claire Sutton','csutton@mycompany.com'), p('Andrew Miles','amiles@mycompany.com'), p('HR Consultant','hr@searchfirm.com')],
+  'AI portfolio review':         [p('Sarah Chen','schen@mycompany.com'), p('Marcus Webb','mwebb@mycompany.com'), p('Priya Nair','pnair@mycompany.com'), p('Tom Okafor','tokafor@mycompany.com')],
+  'Co. Gamma sync':              [p('Luis Morales','lmorales@gamma.com'), p('Hannah Johansson','hjohansson@gamma.com')],
+  'Deployment planning':         [p('Tom Okafor','tokafor@mycompany.com'), p('Lena Fischer','lfischer@mycompany.com'), p('Dev Team Lead','dev@mycompany.com'), p('QA Manager','qa@mycompany.com')],
+  'LP investor update call':     [p('James Harlow','jharlow@mycompany.com'), p('Elena Voss','evoss@mycompany.com'), p('David Kim','dkim@lpfund.com')],
+  'Firm all-hands':              [p('James Harlow','jharlow@mycompany.com'), p('Claire Sutton','csutton@mycompany.com'), p('Marcus Webb','mwebb@mycompany.com'), p('Priya Nair','pnair@mycompany.com'), p('Tom Okafor','tokafor@mycompany.com'), p('Diana Reyes','dreyes@mycompany.com'), p('Elena Voss','evoss@mycompany.com'), p('Andrew Miles','amiles@mycompany.com')],
+  'CEO Search interviews':       [p('Claire Sutton','csutton@mycompany.com'), p('Candidate A','candidatea@gmail.com'), p('Candidate B','candidateb@gmail.com')],
+  'Co. Delta term sheet review': [p('Yuki Tanaka','ytanaka@delta.com'), p('James Harlow','jharlow@mycompany.com'), p('Elena Voss','evoss@mycompany.com')],
+  'Fundraising LP pipeline':     [p('James Harlow','jharlow@mycompany.com'), p('David Kim','dkim@lpfund.com')],
+  'Co. Epsilon intro call':      [p('Omar Farouk','ofarouk@epsilon.com'), p('Aisha Patel','apatel@epsilon.com')],
+  'Co. Alpha board call':        [p('Ryan Cho','rcho@alpha.com'), p('Natalie Berg','nberg@alpha.com'), p('James Harlow','jharlow@mycompany.com'), p('Andrew Miles','amiles@mycompany.com')],
+  'Board meeting':               [p('James Harlow','jharlow@mycompany.com'), p('Elena Voss','evoss@mycompany.com'), p('Andrew Miles','amiles@mycompany.com'), p('Board Member 1','bm1@boardfirm.com'), p('Board Member 2','bm2@boardfirm.com'), p('Board Member 3','bm3@boardfirm.com')],
+  'CEO Search final shortlist':  [p('Claire Sutton','csutton@mycompany.com'), p('Andrew Miles','amiles@mycompany.com'), p('HR Consultant','hr@searchfirm.com')],
+  'AI weekly digest':            [p('Marcus Webb','mwebb@mycompany.com'), p('Priya Nair','pnair@mycompany.com')],
+  'Co. Delta follow-up':         [p('Yuki Tanaka','ytanaka@delta.com'), p('James Harlow','jharlow@mycompany.com')],
+  'Deployment review':           [p('Tom Okafor','tokafor@mycompany.com'), p('Lena Fischer','lfischer@mycompany.com')],
+  'Co. Alpha site visit':        [p('Ryan Cho','rcho@alpha.com'), p('Natalie Berg','nberg@alpha.com'), p('Felix Dumont','fdumont@alpha.com')],
+  'LP dinner':                   [p('James Harlow','jharlow@mycompany.com'), p('David Kim','dkim@lpfund.com'), p('Rachel Stern','rstern@lpfund.com')],
+  'Firm strategy offsite':       [p('James Harlow','jharlow@mycompany.com'), p('Claire Sutton','csutton@mycompany.com'), p('Marcus Webb','mwebb@mycompany.com'), p('Priya Nair','pnair@mycompany.com'), p('Tom Okafor','tokafor@mycompany.com'), p('Diana Reyes','dreyes@mycompany.com'), p('Elena Voss','evoss@mycompany.com'), p('Andrew Miles','amiles@mycompany.com')],
+  'Co. Epsilon follow-up':       [p('Omar Farouk','ofarouk@epsilon.com'), p('Aisha Patel','apatel@epsilon.com')],
+  'Fundraising LP call':         [p('James Harlow','jharlow@mycompany.com'), p('David Kim','dkim@lpfund.com'), p('Rachel Stern','rstern@lpfund.com')],
+  'Co. Gamma product review':    [p('Luis Morales','lmorales@gamma.com'), p('Hannah Johansson','hjohansson@gamma.com'), p('Product Lead','pl@gamma.com')],
+  'Firm ops standup':            [p('James Harlow','jharlow@mycompany.com'), p('Claire Sutton','csutton@mycompany.com'), p('Diana Reyes','dreyes@mycompany.com')],
+  'Co. Alpha pipeline review':   [p('Ryan Cho','rcho@alpha.com'), p('Natalie Berg','nberg@alpha.com')],
+  'LP follow-up call':           [p('James Harlow','jharlow@mycompany.com'), p('David Kim','dkim@lpfund.com')],
+  'CEO Search kickoff':          [p('Claire Sutton','csutton@mycompany.com'), p('Andrew Miles','amiles@mycompany.com'), p('HR Consultant','hr@searchfirm.com')],
+  'Deployment roadmap':          [p('Tom Okafor','tokafor@mycompany.com'), p('Lena Fischer','lfischer@mycompany.com'), p('Dev Team Lead','dev@mycompany.com')],
+  'Fundraising pitch prep':      [p('James Harlow','jharlow@mycompany.com'), p('Elena Voss','evoss@mycompany.com')],
+  'Co. Beta intro':              [p('Sophie Laurent','slaurent@beta.com'), p('Kevin Park','kpark@beta.com')],
+  'Fundraising investor day':    [p('James Harlow','jharlow@mycompany.com'), p('Elena Voss','evoss@mycompany.com'), p('David Kim','dkim@lpfund.com'), p('Rachel Stern','rstern@lpfund.com'), p('LP Guest 1','guest1@lpfund.com'), p('LP Guest 2','guest2@lpfund.com')],
+  'Co. Delta first meeting':     [p('Yuki Tanaka','ytanaka@delta.com'), p('James Harlow','jharlow@mycompany.com')],
+  'Firm partner lunch':          [p('James Harlow','jharlow@mycompany.com'), p('Claire Sutton','csutton@mycompany.com'), p('Andrew Miles','amiles@mycompany.com')],
+  'AI research briefing':        [p('Marcus Webb','mwebb@mycompany.com'), p('Priya Nair','pnair@mycompany.com'), p('Research Lead','rl@ailab.com')],
+  'Co. Gamma board prep':        [p('Luis Morales','lmorales@gamma.com'), p('Hannah Johansson','hjohansson@gamma.com'), p('James Harlow','jharlow@mycompany.com')],
+  'Deployment vendor call':      [p('Tom Okafor','tokafor@mycompany.com'), p('Vendor Rep','rep@vendor.com')],
+  'Fundraising LP update':       [p('James Harlow','jharlow@mycompany.com'), p('David Kim','dkim@lpfund.com')],
+  'Co. Epsilon first look':      [p('Omar Farouk','ofarouk@epsilon.com'), p('Aisha Patel','apatel@epsilon.com'), p('James Harlow','jharlow@mycompany.com')],
+  'Board meeting — Co. Gamma':   [p('James Harlow','jharlow@mycompany.com'), p('Andrew Miles','amiles@mycompany.com'), p('Luis Morales','lmorales@gamma.com'), p('Hannah Johansson','hjohansson@gamma.com'), p('Board Member 1','bm1@boardfirm.com')],
+  'AI strategy session':         [p('Marcus Webb','mwebb@mycompany.com'), p('Priya Nair','pnair@mycompany.com'), p('Sarah Chen','schen@mycompany.com')],
+  'Firm weekly wrap':            [p('James Harlow','jharlow@mycompany.com'), p('Claire Sutton','csutton@mycompany.com'), p('Marcus Webb','mwebb@mycompany.com'), p('Diana Reyes','dreyes@mycompany.com')],
+  'Fundraising LP breakfast':    [p('James Harlow','jharlow@mycompany.com'), p('David Kim','dkim@lpfund.com'), p('LP Guest 1','guest1@lpfund.com')],
+  'Co. Delta deep dive':         [p('Yuki Tanaka','ytanaka@delta.com'), p('James Harlow','jharlow@mycompany.com'), p('Elena Voss','evoss@mycompany.com'), p('Delta Team','team@delta.com')],
+};
+
+function getAttendees(ev) {
+  return ATTENDEES[ev.title] || [];
+}
+
+function formatAttendees(ev) {
+  const list = getAttendees(ev);
+  if (!list.length) return '—';
+  const names = list.map(a => a.name);
+  if (names.length <= 3) return names.join(', ');
+  return names.slice(0, 3).join(', ') + ` +${names.length - 3} more`;
+}
+
+// ── This week events (Mar 23–29) ──────────────────────────────────────────────
+const thisWeekEvents = [
+  { day:0, title:'AI strategy kickoff',          cats:['AI'],                       start:8.5,  end:10.0 },
+  { day:0, title:'AI strategy kickoff',          cats:['AI'],                       start:8.5,  end:10.0, isMaterials:true },
+  { day:0, title:'LP update prep call',          cats:['Fundraising'],              start:10.0, end:11.0 },
+  { day:0, title:'Co. Alpha check-in',           cats:['Co. Alpha'],                start:11.5, end:12.5 },
+  { day:0, title:'Co. Alpha check-in',           cats:['Co. Alpha'],                start:11.5, end:12.5, isMaterials:true },
+  { day:0, title:'CEO Search debrief',           cats:['CEO Searches'],             start:13.0, end:13.5 },
+  { day:0, title:'Firm weekly standup',          cats:['Firm Related'],             start:14.0, end:15.0 },
+  { day:0, title:'Co. Beta intro call',          cats:['Co. Beta','Fundraising'],   start:15.5, end:16.5 },
+  { day:1, title:'Board meeting prep',           cats:['Board Meetings'],           start:8.0,  end:9.5  },
+  { day:1, title:'Board meeting prep',           cats:['Board Meetings'],           start:8.0,  end:9.5,  isMaterials:true },
+  { day:1, title:'Co. Beta quarterly review',    cats:['Co. Beta'],                 start:10.0, end:11.0 },
+  { day:1, title:'LP roadshow call',             cats:['Fundraising'],              start:11.5, end:12.5 },
+  { day:1, title:'AI vendor demo',               cats:['AI'],                       start:13.0, end:14.0 },
+  { day:1, title:'Deployment sync',              cats:['Deployment','AI'],          start:14.0, end:15.0 },
+  { day:1, title:'CEO Search candidate review',  cats:['CEO Searches'],             start:15.5, end:17.0 },
+  { day:1, title:'CEO Search candidate review',  cats:['CEO Searches'],             start:15.5, end:17.0, isMaterials:true },
+  { day:2, title:'AI portfolio review',          cats:['AI'],                       start:8.0,  end:9.5  },
+  { day:2, title:'Co. Gamma sync',               cats:['Co. Gamma'],                start:9.5,  end:10.5 },
+  { day:2, title:'Co. Gamma sync',               cats:['Co. Gamma'],                start:9.5,  end:10.5, isMaterials:true },
+  { day:2, title:'Deployment planning',          cats:['Deployment'],               start:11.0, end:12.0 },
+  { day:2, title:'Flight UA447 SFO-NYC',         cats:['Personal'],                 start:12.5, end:16.5 },
+  { day:2, title:'LP investor update call',      cats:['Fundraising'],              start:12.5, end:13.5 },
+  { day:2, title:'Firm all-hands',               cats:['Firm Related'],             start:14.0, end:15.5 },
+  { day:2, title:'CEO Search interviews',        cats:['CEO Searches'],             start:16.0, end:17.0 },
+  { day:3, title:'Co. Delta term sheet review',  cats:['Co. Delta','Fundraising'],  start:9.0,  end:10.5 },
+  { day:3, title:'Co. Delta term sheet review',  cats:['Co. Delta','Fundraising'],  start:9.0,  end:10.5, isMaterials:true },
+  { day:3, title:'Fundraising LP pipeline',      cats:['Fundraising'],              start:11.0, end:12.0 },
+  { day:3, title:'Doctor appointment',           cats:['Personal'],                 start:13.0, end:14.0 },
+  { day:3, title:'Co. Epsilon intro call',       cats:['Co. Epsilon'],              start:14.5, end:15.5 },
+  { day:3, title:'Co. Alpha board call',         cats:['Co. Alpha','Board Meetings'],start:16.0, end:17.0 },
+  { day:3, title:'Co. Alpha board call',         cats:['Co. Alpha','Board Meetings'],start:16.0, end:17.0, isMaterials:true },
+  { day:4, title:'Board meeting',                cats:['Board Meetings'],           start:9.0,  end:12.0 },
+  { day:4, title:'Board meeting',                cats:['Board Meetings'],           start:9.0,  end:12.0, isMaterials:true },
+  { day:4, title:'CEO Search final shortlist',   cats:['CEO Searches'],             start:13.0, end:14.5 },
+  { day:4, title:'AI weekly digest',             cats:['AI'],                       start:15.0, end:15.5 },
+  { day:4, title:'Co. Delta follow-up',          cats:['Co. Delta'],                start:15.5, end:16.5 },
+  { day:4, title:'Deployment review',            cats:['Deployment'],               start:16.5, end:17.5 },
+  { day:5, title:'Co. Alpha site visit',         cats:['Co. Alpha'],                start:9.0,  end:12.0 },
+  { day:5, title:'LP dinner',                    cats:['Fundraising','Personal'],   start:18.0, end:19.0 },
+  { day:6, title:'Firm strategy offsite',        cats:['Firm Related'],             start:9.0,  end:13.0 },
+  { day:6, title:'Co. Epsilon follow-up',        cats:['Co. Epsilon'],              start:14.0, end:15.0 },
+];
+
+// ── Last week events (Mar 16–22) ──────────────────────────────────────────────
+const lastWeekEvents = [
+  { day:0, title:'Fundraising LP call',          cats:['Fundraising'],              start:8.5,  end:10.0 },
+  { day:0, title:'Fundraising LP call',          cats:['Fundraising'],              start:8.5,  end:10.0, isMaterials:true },
+  { day:0, title:'Co. Gamma product review',     cats:['Co. Gamma'],                start:10.5, end:12.0 },
+  { day:0, title:'Firm ops standup',             cats:['Firm Related'],             start:13.0, end:14.0 },
+  { day:0, title:'Co. Alpha pipeline review',    cats:['Co. Alpha'],                start:14.5, end:15.5 },
+  { day:0, title:'LP follow-up call',            cats:['Fundraising'],              start:16.0, end:17.0 },
+  { day:1, title:'CEO Search kickoff',           cats:['CEO Searches'],             start:8.0,  end:9.5  },
+  { day:1, title:'CEO Search kickoff',           cats:['CEO Searches'],             start:8.0,  end:9.5,  isMaterials:true },
+  { day:1, title:'Deployment roadmap',           cats:['Deployment'],               start:10.0, end:11.5 },
+  { day:1, title:'Fundraising pitch prep',       cats:['Fundraising'],              start:12.0, end:13.5 },
+  { day:1, title:'Fundraising pitch prep',       cats:['Fundraising'],              start:12.0, end:13.5, isMaterials:true },
+  { day:1, title:'Co. Beta intro',               cats:['Co. Beta'],                 start:14.0, end:15.0 },
+  { day:1, title:'Personal - dentist',           cats:['Personal'],                 start:15.5, end:16.5 },
+  { day:2, title:'Fundraising investor day',     cats:['Fundraising'],              start:8.0,  end:11.0 },
+  { day:2, title:'Fundraising investor day',     cats:['Fundraising'],              start:8.0,  end:11.0, isMaterials:true },
+  { day:2, title:'Co. Delta first meeting',      cats:['Co. Delta'],                start:11.5, end:12.5 },
+  { day:2, title:'Firm partner lunch',           cats:['Firm Related'],             start:13.0, end:14.0 },
+  { day:2, title:'AI research briefing',         cats:['AI'],                       start:14.5, end:15.5 },
+  { day:2, title:'Flight UA210 NYC-SFO',         cats:['Personal'],                 start:16.0, end:19.0 },
+  { day:2, title:'CEO Search interviews',        cats:['CEO Searches'],             start:16.0, end:17.5 },
+  { day:3, title:'Co. Gamma board prep',         cats:['Co. Gamma','Board Meetings'],start:9.0, end:10.5 },
+  { day:3, title:'Co. Gamma board prep',         cats:['Co. Gamma','Board Meetings'],start:9.0, end:10.5, isMaterials:true },
+  { day:3, title:'Deployment vendor call',       cats:['Deployment'],               start:11.0, end:12.0 },
+  { day:3, title:'Fundraising LP update',        cats:['Fundraising'],              start:13.0, end:14.0 },
+  { day:3, title:'Co. Epsilon first look',       cats:['Co. Epsilon'],              start:14.5, end:15.5 },
+  { day:3, title:'CEO Search debrief',           cats:['CEO Searches'],             start:16.0, end:17.0 },
+  { day:4, title:'Board meeting — Co. Gamma',    cats:['Board Meetings','Co. Gamma'],start:9.0, end:11.5 },
+  { day:4, title:'Board meeting — Co. Gamma',    cats:['Board Meetings','Co. Gamma'],start:9.0, end:11.5, isMaterials:true },
+  { day:4, title:'AI strategy session',          cats:['AI'],                       start:12.0, end:13.5 },
+  { day:4, title:'Co. Alpha check-in',           cats:['Co. Alpha'],                start:14.0, end:15.0 },
+  { day:4, title:'Firm weekly wrap',             cats:['Firm Related'],             start:15.5, end:16.5 },
+  { day:5, title:'Fundraising LP breakfast',     cats:['Fundraising','Personal'],   start:8.0,  end:9.5  },
+  { day:6, title:'Co. Delta deep dive',          cats:['Co. Delta'],                start:10.0, end:12.0 },
+];
+
+const THIS_WEEK_LABELS = ['Mon Mar 23','Tue Mar 24','Wed Mar 25','Thu Mar 26','Fri Mar 27','Sat Mar 28','Sun Mar 29'];
+const LAST_WEEK_LABELS = ['Mon Mar 16','Tue Mar 17','Wed Mar 18','Thu Mar 19','Fri Mar 20','Sat Mar 21','Sun Mar 22'];
+
+function deriveHours(evs) {
+  const hrs = {};
+  categories.forEach(c => hrs[c] = 0);
+  evs.forEach(ev => {
+    if (ev.isMaterials) return;
+    const cats = getEffectiveCats(ev);
+    if (cats[0] === 'Uncategorized') return;
+    const dur = ev.end - ev.start;
+    cats.forEach(c => { if (categories.includes(c)) hrs[c] += dur; });
+  });
+  return hrs;
+}
+
+function getComputedHours() {
+  return {
+    thisWeek: deriveHours(thisWeekEvents),
+    lastWeek: deriveHours(lastWeekEvents),
+  };
+}
+
+function fmt(h) { return h.toFixed(1) + 'h'; }
+function fmtTime(h) {
+  const hr=Math.floor(h), mn=Math.round((h-hr)*60);
+  const ap=hr>=12?'pm':'am', dh=hr>12?hr-12:hr===0?12:hr;
+  return mn===0?`${dh}${ap}`:`${dh}:${mn.toString().padStart(2,'0')}${ap}`;
+}
+
+// ── One-time session overrides ────────────────────────────────────────────────
+const oneTimeOverrides = {};
+
+function getAIStats() {
+  const aiEvs = thisWeekEvents.filter(e => !e.isMaterials && getEffectiveCats(e).includes('AI'));
+  const dayHrs = [0,0,0,0,0,0,0];
+  aiEvs.forEach(e => dayHrs[e.day] += (e.end-e.start));
+  const best = dayHrs.indexOf(Math.max(...dayHrs));
+  const names = ['Mon, Mar 23','Tue, Mar 24','Wed, Mar 25','Thu, Mar 26','Fri, Mar 27','Sat, Mar 28','Sun, Mar 29'];
+  const lastAI = lastWeekEvents.filter(e => !e.isMaterials && getEffectiveCats(e).includes('AI'));
+  return { count:aiEvs.length, lastCount:lastAI.length, heaviestDay:names[best] };
+}
+
+function buildHighlightCards(id) {
+  const {thisWeek, lastWeek} = getComputedHours();
+  const diffs = categories.map(c => ({ name:c, d:thisWeek[c]-lastWeek[c] }));
+  const biggest = diffs.reduce((a,b)=>b.d>a.d?b:a);
+  const smallest = diffs.reduce((a,b)=>b.d<a.d?b:a);
+  const ai = getAIStats();
+  const cards = [
+    { label:'Biggest increase',      value:biggest.name,   sub:'+'+biggest.d.toFixed(1)+'h vs last week', cls:'card-up' },
+    { label:'Biggest decrease',      value:smallest.name,  sub:smallest.d.toFixed(1)+'h vs last week',    cls:'card-down' },
+    { label:'AI meetings this week', value:ai.count,       sub:(ai.count-ai.lastCount>0?'+':'')+(ai.count-ai.lastCount)+' vs last week', cls:ai.count>ai.lastCount?'card-up':'card-down' },
+    { label:'AI heaviest day',       value:ai.heaviestDay, sub:'', cls:'' },
+  ];
+  document.getElementById(id).innerHTML = cards.map(c=>`
+    <div class="card">
+      <div class="card-label">${c.label}</div>
+      <div class="card-value ${c.cls}">${c.value}</div>
+      <div class="card-sub">${c.sub}</div>
+    </div>`).join('');
+}
+
+function buildTable() {
+  const {thisWeek, lastWeek} = getComputedHours();
+  document.getElementById('cat-table').innerHTML = categories.map(c => {
+    const tw=thisWeek[c], lw=lastWeek[c], d=tw-lw;
+    const cls=d>0?'change-pos':d<0?'change-neg':'change-zero';
+    return `<tr><td>${c}</td><td>${fmt(lw)}</td><td>${fmt(tw)}</td><td class="${cls}">${d>0?'+':''}${fmt(d)}</td></tr>`;
+  }).join('');
+}
+
+function buildInsights() {
+  const boxes = [
+    { label:'Notable shifts',        text:'Board Meetings up sharply — Friday full-day session plus Thursday Co. Alpha board call. Fundraising spread across more touch points. AI holding strong for second week running.' },
+    { label:'Materials still needed',text:'Board prep deck for Friday meeting. LP investor update one-pager. Due diligence summary for Co. Alpha board call.' },
+    { label:'Schedule notes',        text:'Wednesday flight overlaps LP call and Firm all-hands — confirm remote attendance. Thursday back-to-back 9am–5pm with no breaks.' },
+    { label:'Top priorities',        text:'1. Close Co. Delta term sheet. 2. Finalize LP fundraising update. 3. CEO Search shortlist review by EOW.' },
+    { label:'Upcoming deadlines',    text:'LP report due Friday March 29. Co. Alpha IOI deadline Monday March 30. Firm offsite planning due April 3.' },
+  ];
+  document.getElementById('insight-boxes').innerHTML = boxes.map(b=>`
+    <div class="insight-box">
+      <div class="insight-label">${b.label}</div>
+      <div class="insight-text">${b.text}</div>
+    </div>`).join('');
+}
+
+function buildBarChart() {
+  const {thisWeek, lastWeek} = getComputedHours();
+  new Chart(document.getElementById('barChart'),{
+    type:'bar',
+    data:{
+      labels:categories,
+      datasets:[
+        {label:'Last week',data:categories.map(c=>+lastWeek[c].toFixed(1)),backgroundColor:'#378ADD',borderRadius:3},
+        {label:'This week',data:categories.map(c=>+thisWeek[c].toFixed(1)),backgroundColor:'#0C447C',borderRadius:3},
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{ticks:{autoSkip:false,maxRotation:35,font:{size:11}},grid:{display:false}},
+        y:{ticks:{callback:v=>v+'h',font:{size:11}},grid:{color:'rgba(0,0,0,0.05)'},title:{display:true,text:'Hours',font:{size:11}}}
+      }
+    }
+  });
+}
+
+function buildDeltaCards() {
+  const {thisWeek, lastWeek} = getComputedHours();
+  document.getElementById('delta-cards').innerHTML = categories.map(c=>{
+    const tw=thisWeek[c],lw=lastWeek[c],d=tw-lw;
+    const cls=d>0?'card-up':d<0?'card-down':'change-zero';
+    return `<div class="delta-card">
+      <div class="delta-name">${c}</div>
+      <div class="delta-hours">${fmt(tw)} this week</div>
+      <div class="delta-val ${cls}">${d>0?'+':''}${fmt(d)}</div>
+    </div>`;
+  }).join('');
+}
+
+function buildLegend() {
+  document.getElementById('cal-legend').innerHTML = categories.map(c=>
+    `<div class="legend-item"><div class="legend-swatch" style="background:${CAT_COLORS[c]};"></div>${c}</div>`
+  ).join('');
+}
+
+function buildCalendar(evs, dayLabels) {
+  const S=8, E=19, SH=48;
+  const totalH=(E-S)*SH;
+  const container=document.getElementById('cal-container');
+  container.innerHTML='';
+
+  const timesDiv=document.createElement('div');
+  timesDiv.className='cal-times';
+  let th='<div class="cal-time-header"></div>';
+  for(let h=S;h<E;h++){
+    const lbl=h===12?'12pm':h>12?(h-12)+'pm':h+'am';
+    th+=`<div class="cal-time-label">${lbl}</div>`;
+  }
+  timesDiv.innerHTML=th;
+  container.appendChild(timesDiv);
+
+  const daysDiv=document.createElement('div');
+  daysDiv.className='cal-days';
+
+  for(let d=0;d<7;d++){
+    const dayDiv=document.createElement('div');
+    dayDiv.className='cal-day';
+    const hdr=document.createElement('div');
+    hdr.className='cal-day-header';
+    hdr.textContent=dayLabels[d];
+    dayDiv.appendChild(hdr);
+
+    const body=document.createElement('div');
+    body.className='cal-day-body';
+    body.style.height=totalH+'px';
+    body.style.position='relative';
+
+    for(let h=0;h<(E-S);h++){
+      const line=document.createElement('div');
+      line.className='cal-hour-line';
+      line.style.top=(h*SH)+'px';
+      body.appendChild(line);
+    }
+
+    const dayEvs=evs.filter(ev=>ev.day===d).sort((a,b)=>a.start-b.start);
+    const cols=[];
+    const evCols=dayEvs.map(ev=>{
+      let col=cols.findIndex(t=>t<=ev.start);
+      if(col===-1){col=cols.length;cols.push(ev.end);}
+      else cols[col]=ev.end;
+      return col;
+    });
+    const numCols=cols.length||1;
+
+    dayEvs.forEach((ev,i)=>{
+      const col=evCols[i];
+      const colW=100/numCols;
+      const top=(ev.start-S)*SH;
+      const height=Math.max((ev.end-ev.start)*SH-2,16);
+      const isMat=ev.isMaterials;
+      const title=isMat?`Materials: ${ev.title}`:ev.title;
+      const cats=getEffectiveCats(ev);
+      const unmatched = !isMat && !isRuleMatched(ev);
+      const el=document.createElement('div');
+      el.className='cal-event';
+      el.style.cssText=`top:${top}px;height:${height}px;left:calc(${col*colW}% + 2px);width:calc(${colW}% - 4px);background:${getEventBg(ev)};opacity:${isMat?0.72:1};border-style:${isMat?'dashed':'solid'};cursor:pointer;position:absolute;`;
+      el.innerHTML=`
+        ${unmatched ? `<span style="position:absolute;top:2px;right:3px;background:rgba(255,255,255,0.9);color:#888;font-size:9px;font-weight:700;border-radius:50%;width:13px;height:13px;display:flex;align-items:center;justify-content:center;line-height:1;">?</span>` : ''}
+        <div class="cal-event-title">${title}</div>
+        ${height>24?`<div class="cal-event-time">${fmtTime(ev.start)} – ${fmtTime(ev.end)}</div>`:''}
+        ${height>36&&cats.length>1?`<div class="cal-event-cats">${cats.join(' · ')}</div>`:''}
+      `;      if(!isMat) {
+        el.addEventListener('click', (e) => {
+          e.stopPropagation();
+          showOverridePopup(ev, el);
+        });
+      }
+      body.appendChild(el);
+    });
+
+    dayDiv.appendChild(body);
+    daysDiv.appendChild(dayDiv);
+  }
+  container.appendChild(daysDiv);
+}
+
+let currentWeek='this';
+function switchWeek(week, btn) {
+  currentWeek=week;
+  document.querySelectorAll('.week-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  if(week==='this') buildCalendar(thisWeekEvents, THIS_WEEK_LABELS);
+  else buildCalendar(lastWeekEvents, LAST_WEEK_LABELS);
+}
+
+const DAY_NAMES_THIS = ['Mon Mar 23','Tue Mar 24','Wed Mar 25','Thu Mar 26','Fri Mar 27','Sat Mar 28','Sun Mar 29'];
+const DAY_NAMES_LAST = ['Mon Mar 16','Tue Mar 17','Wed Mar 18','Thu Mar 19','Fri Mar 20','Sat Mar 21','Sun Mar 22'];
+
+function getEffectiveCats(ev) {
+  // Check one-time session override first
+  const key = `${ev.day}|${ev.title}|${ev.start}`;
+  if (oneTimeOverrides[key]) return oneTimeOverrides[key];
+  const recurMatch = applyRecurring(ev);
+  const ruleMatch = applyRules(ev);
+  const combined = [...(recurMatch || []), ...(ruleMatch || [])];
+  const unique = [...new Set(combined)];
+  if (!unique.length) return ev.cats;
+  const real = unique.filter(c => c !== 'Uncategorized');
+  return real.length ? real : ['Uncategorized'];
+}
+
+function isRuleMatched(ev) {
+  const key = `${ev.day}|${ev.title}|${ev.start}`;
+  if (oneTimeOverrides[key]) return true;
+  const recurMatch = applyRecurring(ev);
+  const ruleMatch = applyRules(ev);
+  return !!(recurMatch || ruleMatch);
+}
+
+function getEventBg(ev) {
+  const cats = getEffectiveCats(ev);
+  if(cats[0] === 'Uncategorized') return '#ccc';
+  if(cats.length===1) return CAT_COLORS[cats[0]] || '#888';
+  return `linear-gradient(to right,${CAT_COLORS[cats[0]]||'#888'} 50%,${CAT_COLORS[cats[1]]||'#888'} 50%)`;
+}
+
+function buildDataTable(evs, dayNames) {
+  const real = evs.filter(e => !e.isMaterials).sort((a,b) => a.day!==b.day ? a.day-b.day : a.start-b.start);
+  const rows = real.map(ev => {
+    const cats = getEffectiveCats(ev);
+    const bg = getEventBg(ev);
+    const matched = isRuleMatched(ev);
+    const dot = `<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${bg};margin-right:5px;vertical-align:middle;flex-shrink:0;"></span>`;
+    const badge = !matched ? `<span style="font-size:10px;color:#999;font-weight:600;margin-left:5px;" title="No rule matched — category is a best guess">?</span>` : '';
+    const dur = ev.end - ev.start;
+    return `<tr>
+      <td style="color:#666;">${dayNames[ev.day]}</td>
+      <td>${fmtTime(ev.start)} – ${fmtTime(ev.end)}</td>
+      <td>${ev.title}</td>
+      <td style="font-size:12px;color:#555;">${formatAttendees(ev)}</td>
+      <td><span style="display:flex;align-items:center;">${dot}${cats.join(' · ')}${badge}</span></td>
+      <td>${fmt(dur)}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('data-table-wrap').innerHTML = `
+    <table>
+      <thead><tr><th>Day</th><th>Time</th><th>Meeting</th><th>Attendees</th><th>Category</th><th>Duration</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function switchDataWeek(week, btn) {
+  document.querySelectorAll('#tab-data .week-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  if(week==='this') buildDataTable(thisWeekEvents, DAY_NAMES_THIS);
+  else buildDataTable(lastWeekEvents, DAY_NAMES_LAST);
+}
+
+// ── Recurring meetings ────────────────────────────────────────────────────────
+let recurringMeetings = [];
+
+async function loadRecurring() {
+  try {
+    const result = await window.storage.get('recurring-meetings');
+    recurringMeetings = result ? JSON.parse(result.value) : [];
+  } catch(e) {
+    recurringMeetings = [];
+  }
+  populateRecurCatDropdown();
+  renderRecurringTable();
+}
+
+async function saveRecurring() {
+  try {
+    await window.storage.set('recurring-meetings', JSON.stringify(recurringMeetings));
+  } catch(e) {
+    console.error('Failed to save recurring meetings', e);
+  }
+}
+
+function populateRecurCatDropdown() {
+  const sel = document.getElementById('recur-cat');
+  sel.innerHTML = ALL_CATS.map(c => `<option value="${c}">${c}</option>`).join('');
+}
+
+function addRecurring() {
+  const title = document.getElementById('recur-title').value.trim();
+  const cat = document.getElementById('recur-cat').value;
+  if (!title) { alert('Please enter a meeting title or keyword.'); return; }
+  recurringMeetings.push({ id: Date.now(), title, cat });
+  document.getElementById('recur-title').value = '';
+  saveRecurring();
+  renderRecurringTable();
+}
+
+function deleteRecurring(i) {
+  recurringMeetings.splice(i, 1);
+  saveRecurring();
+  renderRecurringTable();
+}
+
+function renderRecurringTable() {
+  const tbody = document.getElementById('recur-tbody');
+  const empty = document.getElementById('recur-empty');
+  if (!recurringMeetings.length) {
+    tbody.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  tbody.innerHTML = recurringMeetings.map((r, i) => {
+    const dot = CAT_COLORS[r.cat]
+      ? `<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${CAT_COLORS[r.cat]};margin-right:6px;vertical-align:middle;"></span>`
+      : '';
+    return `<tr>
+      <td><code style="background:#f5f5f5;padding:2px 6px;border-radius:4px;font-size:12px;">${r.title}</code></td>
+      <td>${dot}${r.cat}</td>
+      <td style="text-align:center;">
+        <button onclick="deleteRecurring(${i})" style="background:none;border:none;cursor:pointer;color:#A32D2D;padding:2px 6px;font-size:13px;" title="Delete">✕</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function applyRecurring(ev) {
+  const title = (ev.title || '').toLowerCase();
+  const matched = [];
+  for (const r of recurringMeetings) {
+    if (title.includes(r.title.toLowerCase())) matched.push(r.cat);
+  }
+  return matched.length ? [...new Set(matched)] : null;
+}
+const ALL_CATS = [...categories, 'Co. Zeta', 'Uncategorized'];
+let rules = [];
+
+const RULE_TYPE_LABELS = {
+  title_contains: 'Title contains',
+  domain: 'Attendee domain',
+  organizer: 'Organizer contains',
+};
+
+async function loadRules() {
+  try {
+    const result = await window.storage.get('categorization-rules');
+    rules = result ? JSON.parse(result.value) : getDefaultRules();
+  } catch(e) {
+    rules = getDefaultRules();
+  }
+  populateCatDropdown();
+  renderRulesTable();
+}
+
+async function saveRules() {
+  try {
+    await window.storage.set('categorization-rules', JSON.stringify(rules));
+  } catch(e) {
+    console.error('Failed to save rules', e);
+  }
+}
+
+function getDefaultRules() {
+  const mkRule = (cat, ...conds) => ({ id: Date.now() + Math.random(), conditions: conds.map(([type, value]) => ({ type, value })), cat });
+  return [
+    // Uncategorized
+    mkRule('Uncategorized', ['title_contains','flight']),
+    mkRule('Uncategorized', ['title_contains','limo']),
+    mkRule('Uncategorized', ['title_contains','pickup']),
+    mkRule('Uncategorized', ['title_contains','birthday']),
+    mkRule('Uncategorized', ['title_contains','reminder']),
+    mkRule('Uncategorized', ['title_contains','reservation']),
+    mkRule('Uncategorized', ['title_contains','check-in']),
+    mkRule('Uncategorized', ['title_contains','check out']),
+    mkRule('Uncategorized', ['title_contains','hotel']),
+    mkRule('Uncategorized', ['title_contains','inn']),
+    mkRule('Uncategorized', ['title_contains','suites']),
+    mkRule('Uncategorized', ['title_contains','resort']),
+    mkRule('Uncategorized', ['title_contains','Embassy Suites']),
+    mkRule('Uncategorized', ['title_contains','Ritz Carlton']),
+    // Personal
+    mkRule('Personal', ['title_contains','Wife']),
+    mkRule('Personal', ['title_contains','Child1']),
+    mkRule('Personal', ['title_contains','Child2']),
+    mkRule('Personal', ['title_contains','doctor']),
+    mkRule('Personal', ['title_contains','Dr.']),
+    mkRule('Personal', ['title_contains','appointment']),
+    mkRule('Personal', ['title_contains','patient visit']),
+    // Co. Alpha
+    mkRule('Co. Alpha', ['title_contains','alpha']),
+    mkRule('Co. Alpha', ['domain','@alpha.com']),
+    // Co. Beta
+    mkRule('Co. Beta', ['title_contains','beta']),
+    mkRule('Co. Beta', ['domain','@beta.com']),
+    // Co. Gamma
+    mkRule('Co. Gamma', ['title_contains','gamma']),
+    mkRule('Co. Gamma', ['domain','@gamma.com']),
+    // Co. Delta
+    mkRule('Co. Delta', ['title_contains','delta']),
+    mkRule('Co. Delta', ['domain','@delta.com']),
+    // Co. Epsilon
+    mkRule('Co. Epsilon', ['title_contains','epsilon']),
+    mkRule('Co. Epsilon', ['domain','@epsilon.com']),
+    // Co. Zeta
+    mkRule('Co. Zeta', ['title_contains','zeta']),
+    mkRule('Co. Zeta', ['domain','@zeta.com']),
+    // Firm Related
+    mkRule('Firm Related', ['title_contains','MyCompanyName']),
+    mkRule('Firm Related', ['organizer','InternalWorker1']),
+    mkRule('Firm Related', ['organizer','InternalWorker2']),
+    // Other
+    mkRule('Board Meetings', ['title_contains','board']),
+    mkRule('AI', ['title_contains','AI']),
+  ];
+}
+
+function populateCatDropdown() {
+  const sel = document.getElementById('rule-cat');
+  sel.innerHTML = ALL_CATS.map(c => `<option value="${c}">${c}</option>`).join('');
+  // Add first condition row on load
+  if (!document.querySelector('#rule-conditions .condition-row')) addRuleCondition();
+}
+
+function addRuleCondition() {
+  const container = document.getElementById('rule-conditions');
+  const index = container.querySelectorAll('.condition-row').length;
+  const row = document.createElement('div');
+  row.className = 'condition-row';
+  row.style.cssText = 'display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end;margin-bottom:8px;';
+  row.innerHTML = `
+    ${index > 0 ? `<div style="grid-column:1/-1;font-size:11px;font-weight:500;color:#185FA5;margin-bottom:-4px;">AND</div>` : ''}
+    <div>
+      ${index === 0 ? `<div style="font-size:11px;color:#666;margin-bottom:4px;">Condition type</div>` : ''}
+      <select class="cond-type" style="width:100%;padding:8px 10px;border:0.5px solid #ddd;border-radius:6px;font-size:13px;background:#fff;">
+        <option value="title_contains">Title contains</option>
+        <option value="domain">Attendee domain</option>
+        <option value="organizer">Organizer contains</option>
+      </select>
+    </div>
+    <div>
+      ${index === 0 ? `<div style="font-size:11px;color:#666;margin-bottom:4px;">Value</div>` : ''}
+      <input type="text" class="cond-value" placeholder="e.g. offsite, @mycompany.com" style="width:100%;padding:8px 10px;border:0.5px solid #ddd;border-radius:6px;font-size:13px;" />
+    </div>
+    <button onclick="this.closest('.condition-row').remove()" style="padding:8px 10px;border:0.5px solid #ddd;border-radius:6px;font-size:13px;background:#fff;cursor:pointer;color:#A32D2D;${index===0?'margin-top:18px;':''}">✕</button>
+  `;
+  container.appendChild(row);
+}
+
+function applyRules(ev) {
+  const title = (ev.title || '').toLowerCase();
+  const organizer = (ev.organizer || '').toLowerCase();
+  // Use ATTENDEES lookup for domain matching since real calendar data will have this
+  const attendeeList = getAttendees(ev);
+  const domains = attendeeList.map(a => {
+    const m = (a.email||'').match(/@(.+)/);
+    return m ? m[1].toLowerCase() : '';
+  });
+
+  function matchesCondition(cond) {
+    const val = cond.value.toLowerCase().replace(/^@/, '');
+    if (cond.type === 'title_contains') return title.includes(val);
+    if (cond.type === 'organizer') return organizer.includes(val);
+    if (cond.type === 'domain') return domains.some(d => d.includes(val));
+    return false;
+  }
+
+  const matched = [];
+  for (const rule of rules) {
+    // Support both old single-condition format and new compound format
+    const conditions = rule.conditions || [{ type: rule.type, value: rule.value }];
+    const allMatch = conditions.every(matchesCondition);
+    if (allMatch) matched.push(rule.cat);
+  }
+
+  const unique = [...new Set(matched)];
+  if (!unique.length) return null;
+  const real = unique.filter(c => c !== 'Uncategorized');
+  return real.length ? real : ['Uncategorized'];
+}
+
+function renderRulesTable() {
+  const tbody = document.getElementById('rules-tbody');
+  const empty = document.getElementById('rules-empty');
+  if (!rules.length) {
+    tbody.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  tbody.innerHTML = rules.map((r,i) => {
+    const conditions = r.conditions || [{ type: r.type, value: r.value }];
+    const condHtml = conditions.map((c, ci) => {
+      const label = RULE_TYPE_LABELS[c.type] || c.type;
+      return `${ci > 0 ? '<span style="color:#185FA5;font-size:10px;font-weight:600;margin:0 4px;">AND</span>' : ''}<code style="background:#f0f0f0;padding:2px 6px;border-radius:4px;font-size:11px;">${label}: ${c.value}</code>`;
+    }).join('');
+    const dot = ALL_CATS.includes(r.cat) && CAT_COLORS[r.cat]
+      ? `<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${CAT_COLORS[r.cat]};margin-right:6px;vertical-align:middle;"></span>`
+      : '';
+    return `<tr>
+      <td style="font-size:12px;">${condHtml}</td>
+      <td>${dot}${r.cat}</td>
+      <td style="text-align:center;">
+        <button onclick="moveRule(${i},-1)" style="background:none;border:none;cursor:pointer;color:#666;padding:2px 6px;font-size:14px;" title="Move up">↑</button>
+        <button onclick="moveRule(${i},1)" style="background:none;border:none;cursor:pointer;color:#666;padding:2px 6px;font-size:14px;" title="Move down">↓</button>
+        <button onclick="deleteRule(${i})" style="background:none;border:none;cursor:pointer;color:#A32D2D;padding:2px 6px;font-size:13px;" title="Delete">✕</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function addRule() {
+  const cat = document.getElementById('rule-cat').value;
+  const rows = document.querySelectorAll('#rule-conditions .condition-row');
+  const conditions = [];
+  for (const row of rows) {
+    const type = row.querySelector('.cond-type').value;
+    const value = row.querySelector('.cond-value').value.trim();
+    if (value) conditions.push({ type, value });
+  }
+  if (!conditions.length) { alert('Please enter at least one condition.'); return; }
+  rules.push({ id: Date.now(), conditions, cat });
+  // Clear form
+  document.getElementById('rule-conditions').innerHTML = '';
+  addRuleCondition();
+  saveRules();
+  renderRulesTable();
+}
+
+function deleteRule(i) {
+  rules.splice(i, 1);
+  saveRules();
+  renderRulesTable();
+}
+
+function moveRule(i, dir) {
+  const j = i + dir;
+  if (j < 0 || j >= rules.length) return;
+  [rules[i], rules[j]] = [rules[j], rules[i]];
+  saveRules();
+  renderRulesTable();
+}
+
+// ── Manual override popup ─────────────────────────────────────────────────────
+let currentOverrideEv = null;
+
+function showOverridePopup(ev, el) {
+  currentOverrideEv = ev;
+  const cats = getEffectiveCats(ev);
+  document.getElementById('popup-title').textContent = ev.title;
+  document.getElementById('popup-time').textContent = `${fmtTime(ev.start)} – ${fmtTime(ev.end)} · ${fmt(ev.end - ev.start)}`;
+  document.getElementById('popup-attendees').textContent = formatAttendees(ev);
+  const sel = document.getElementById('popup-cat-select');
+  sel.innerHTML = ALL_CATS.map(c => `<option value="${c}">${c}</option>`).join('');
+  sel.value = cats[0] || 'Uncategorized';
+
+  // Populate domain dropdown from attendees
+  const attendees = getAttendees(ev);
+  const domains = [...new Set(attendees.map(a => {
+    const m = (a.email||'').match(/@(.+)/);
+    return m ? m[1] : null;
+  }).filter(Boolean))];
+  const domSel = document.getElementById('popup-domain-select');
+  domSel.innerHTML = domains.length
+    ? domains.map(d => `<option value="${d}">@${d}</option>`).join('')
+    : '<option value="">No domains found</option>';
+  document.getElementById('domain-option').style.opacity = domains.length ? '1' : '0.4';
+
+  // Reset to "just this once"
+  document.querySelector('input[name="save-type"][value="once"]').checked = true;
+  document.getElementById('override-popup').style.display = 'block';
+}
+
+function closeOverridePopup() {
+  document.getElementById('override-popup').style.display = 'none';
+  currentOverrideEv = null;
+}
+
+async function saveOverride() {
+  const ev = currentOverrideEv;
+  const newCat = document.getElementById('popup-cat-select').value;
+  const saveType = document.querySelector('input[name="save-type"]:checked')?.value || 'once';
+  if (!ev) return;
+
+  if (saveType === 'once') {
+    // Store as a one-time session override keyed by event id (day+title+start)
+    const key = `${ev.day}|${ev.title}|${ev.start}`;
+    oneTimeOverrides[key] = [newCat];
+
+  } else if (saveType === 'title') {
+    // Save as recurring meeting rule
+    const existing = recurringMeetings.find(r => r.title.toLowerCase() === ev.title.toLowerCase());
+    if (existing) existing.cat = newCat;
+    else recurringMeetings.push({ id: Date.now(), title: ev.title, cat: newCat });
+    await saveRecurring();
+    renderRecurringTable();
+
+  } else if (saveType === 'domain') {
+    // Save as a domain-based rule
+    const domain = document.getElementById('popup-domain-select').value;
+    if (domain) {
+      rules.push({ id: Date.now(), conditions: [{ type: 'domain', value: '@' + domain }], cat: newCat });
+      await saveRules();
+      renderRulesTable();
+    }
+  }
+
+  closeOverridePopup();
+  const week = document.querySelector('#mtab-schedule .week-btn.active')?.textContent?.includes('Last') ? 'last' : 'this';
+  buildCalendar(week === 'last' ? lastWeekEvents : thisWeekEvents, week === 'last' ? LAST_WEEK_LABELS : THIS_WEEK_LABELS);
+  buildDataTable(week === 'last' ? lastWeekEvents : thisWeekEvents, week === 'last' ? DAY_NAMES_LAST : DAY_NAMES_THIS);
+}
+
+function showMTab(name, btn) {
+  ['schedule','data','rules'].forEach(t => document.getElementById('mtab-'+t).classList.add('hidden'));
+  document.getElementById('mtab-'+name).classList.remove('hidden');
+  document.querySelectorAll('#tab-maintenance .tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function showTab(name,btn){
+  ['overview','timechart','maintenance'].forEach(t=>document.getElementById('tab-'+t).classList.add('hidden'));
+  document.getElementById('tab-'+name).classList.remove('hidden');
+  document.querySelectorAll('.tabs > .tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+buildLegend();
+
+async function init() {
+  await Promise.all([loadRules(), loadRecurring()]);
+  buildHighlightCards('cards-overview');
+  buildHighlightCards('cards-timechart');
+  buildTable();
+  buildInsights();
+  buildDeltaCards();
+  buildBarChart();
+  buildCalendar(thisWeekEvents, THIS_WEEK_LABELS);
+  buildDataTable(thisWeekEvents, DAY_NAMES_THIS);
+}
+
+init();
+</script>
+<!-- Override popup -->
+<div id="override-popup" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:1000;background:rgba(0,0,0,0.3);" onclick="closeOverridePopup()">
+  <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border-radius:12px;padding:1.5rem;width:360px;box-shadow:0 4px 24px rgba(0,0,0,0.15);" onclick="event.stopPropagation()">
+    <div style="font-size:15px;font-weight:500;color:#111;margin-bottom:4px;" id="popup-title"></div>
+    <div style="font-size:12px;color:#666;margin-bottom:8px;" id="popup-time"></div>
+    <div style="font-size:11px;color:#666;margin-bottom:2px;">Attendees</div>
+    <div style="font-size:12px;color:#111;margin-bottom:1rem;" id="popup-attendees"></div>
+    <div style="font-size:11px;color:#666;margin-bottom:4px;">Category</div>
+    <select id="popup-cat-select" style="width:100%;padding:8px 10px;border:0.5px solid #ddd;border-radius:6px;font-size:13px;background:#fff;margin-bottom:1rem;"></select>
+    <div style="font-size:11px;color:#666;margin-bottom:8px;">Save as</div>
+    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:1rem;">
+      <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;">
+        <input type="radio" name="save-type" value="once" checked> Just this once — don't create a rule
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;">
+        <input type="radio" name="save-type" value="title"> Always when title contains this meeting name
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;" id="domain-option">
+        <input type="radio" name="save-type" value="domain"> Always when attendee domain matches
+        <select id="popup-domain-select" style="padding:4px 8px;border:0.5px solid #ddd;border-radius:4px;font-size:12px;background:#fff;margin-left:4px;"></select>
+      </label>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button onclick="closeOverridePopup()" style="padding:8px 16px;border:0.5px solid #ddd;border-radius:6px;font-size:13px;background:#fff;cursor:pointer;color:#666;">Cancel</button>
+      <button onclick="saveOverride()" style="padding:8px 16px;background:#0C447C;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;">Save</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
