@@ -144,7 +144,7 @@ tbody tr:hover { background: #f5f5f5; }
               <div style="display:flex;align-items:center;gap:8px;margin-left:auto;">
                 <div style="font-size:11px;color:#666;">Assign to</div>
                 <select id="rule-cat" style="padding:8px 10px;border:0.5px solid #ddd;border-radius:6px;font-size:13px;background:#fff;">
-                  <option value="Uncategorized">Uncategorized</option>
+                  <option value="No Category">No Category</option>
                 </select>
                 <button onclick="addRule()" style="padding:8px 18px;background:#0C447C;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;">Add</button>
               </div>
@@ -163,7 +163,7 @@ tbody tr:hover { background: #f5f5f5; }
                 <div style="flex:1;">
                   <div style="font-size:11px;color:#666;margin-bottom:4px;">Category</div>
                   <select id="recur-cat" style="width:100%;padding:8px 10px;border:0.5px solid #ddd;border-radius:6px;font-size:13px;background:#fff;">
-                    <option value="Uncategorized">Uncategorized</option>
+                    <option value="No Category">No Category</option>
                   </select>
                 </div>
                 <button onclick="addRecurring()" style="padding:8px 18px;background:#0C447C;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;height:36px;">Add</button>
@@ -196,6 +196,23 @@ tbody tr:hover { background: #f5f5f5; }
             <div id="recur-empty" style="text-align:center;padding:2rem;color:#999;font-size:13px;">No recurring meetings added yet.</div>
           </div>
         </div>
+
+        <!-- AI Categorization section -->
+        <div style="margin-top:2rem;padding-top:1.5rem;border-top:0.5px solid #e5e5e5;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+            <div>
+              <div style="font-size:15px;font-weight:500;color:#111;margin-bottom:4px;">AI categorization</div>
+              <div style="font-size:13px;color:#666;">For events that don't match any rule, Claude will guess the category. Confidence ≥ 80% gets assigned with a ? badge. Edit descriptions below to improve accuracy.</div>
+            </div>
+            <button onclick="runAICategorization()" id="ai-run-btn" style="padding:8px 18px;background:#0C447C;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;white-space:nowrap;margin-left:1rem;">Run AI now</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Category</th><th>Description (used by AI)</th><th style="text-align:center;width:60px;">Edit</th></tr></thead>
+              <tbody id="desc-tbody"></tbody>
+            </table>
+          </div>
+        </div>
     </div>
   </div>
 </div>
@@ -219,160 +236,524 @@ const CAT_COLORS = {
 };
 const categories = Object.keys(CAT_COLORS);
 
-// ── Synthetic attendee data (name + email) ───────────────────────────────────
-const p = (name, email) => ({ name, email });
-const ATTENDEES = {
-  'AI strategy kickoff':         [p('Sarah Chen','schen@mycompany.com'), p('Marcus Webb','mwebb@mycompany.com'), p('Priya Nair','pnair@mycompany.com'), p('Tom Okafor','tokafor@mycompany.com'), p('Diana Reyes','dreyes@mycompany.com')],
-  'LP update prep call':         [p('James Harlow','jharlow@mycompany.com'), p('Elena Voss','evoss@mycompany.com')],
-  'Co. Alpha check-in':          [p('Ryan Cho','rcho@alpha.com'), p('Natalie Berg','nberg@alpha.com'), p('Felix Dumont','fdumont@alpha.com')],
-  'CEO Search debrief':          [p('Claire Sutton','csutton@mycompany.com'), p('Andrew Miles','amiles@mycompany.com')],
-  'Firm weekly standup':         [p('James Harlow','jharlow@mycompany.com'), p('Claire Sutton','csutton@mycompany.com'), p('Marcus Webb','mwebb@mycompany.com'), p('Priya Nair','pnair@mycompany.com'), p('Tom Okafor','tokafor@mycompany.com'), p('Diana Reyes','dreyes@mycompany.com')],
-  'Co. Beta intro call':         [p('Sophie Laurent','slaurent@beta.com'), p('Kevin Park','kpark@beta.com'), p('Mia Torres','mtorres@beta.com')],
-  'Board meeting prep':          [p('James Harlow','jharlow@mycompany.com'), p('Elena Voss','evoss@mycompany.com'), p('Andrew Miles','amiles@mycompany.com')],
-  'Co. Beta quarterly review':   [p('Sophie Laurent','slaurent@beta.com'), p('Kevin Park','kpark@beta.com')],
-  'LP roadshow call':            [p('James Harlow','jharlow@mycompany.com'), p('David Kim','dkim@lpfund.com'), p('Rachel Stern','rstern@lpfund.com')],
-  'AI vendor demo':              [p('Marcus Webb','mwebb@mycompany.com'), p('Priya Nair','pnair@mycompany.com'), p('Vendor Rep','rep@aivendor.com')],
-  'Deployment sync':             [p('Tom Okafor','tokafor@mycompany.com'), p('Marcus Webb','mwebb@mycompany.com'), p('Lena Fischer','lfischer@mycompany.com')],
-  'CEO Search candidate review': [p('Claire Sutton','csutton@mycompany.com'), p('Andrew Miles','amiles@mycompany.com'), p('HR Consultant','hr@searchfirm.com')],
-  'AI portfolio review':         [p('Sarah Chen','schen@mycompany.com'), p('Marcus Webb','mwebb@mycompany.com'), p('Priya Nair','pnair@mycompany.com'), p('Tom Okafor','tokafor@mycompany.com')],
-  'Co. Gamma sync':              [p('Luis Morales','lmorales@gamma.com'), p('Hannah Johansson','hjohansson@gamma.com')],
-  'Deployment planning':         [p('Tom Okafor','tokafor@mycompany.com'), p('Lena Fischer','lfischer@mycompany.com'), p('Dev Team Lead','dev@mycompany.com'), p('QA Manager','qa@mycompany.com')],
-  'LP investor update call':     [p('James Harlow','jharlow@mycompany.com'), p('Elena Voss','evoss@mycompany.com'), p('David Kim','dkim@lpfund.com')],
-  'Firm all-hands':              [p('James Harlow','jharlow@mycompany.com'), p('Claire Sutton','csutton@mycompany.com'), p('Marcus Webb','mwebb@mycompany.com'), p('Priya Nair','pnair@mycompany.com'), p('Tom Okafor','tokafor@mycompany.com'), p('Diana Reyes','dreyes@mycompany.com'), p('Elena Voss','evoss@mycompany.com'), p('Andrew Miles','amiles@mycompany.com')],
-  'CEO Search interviews':       [p('Claire Sutton','csutton@mycompany.com'), p('Candidate A','candidatea@gmail.com'), p('Candidate B','candidateb@gmail.com')],
-  'Co. Delta term sheet review': [p('Yuki Tanaka','ytanaka@delta.com'), p('James Harlow','jharlow@mycompany.com'), p('Elena Voss','evoss@mycompany.com')],
-  'Fundraising LP pipeline':     [p('James Harlow','jharlow@mycompany.com'), p('David Kim','dkim@lpfund.com')],
-  'Co. Epsilon intro call':      [p('Omar Farouk','ofarouk@epsilon.com'), p('Aisha Patel','apatel@epsilon.com')],
-  'Co. Alpha board call':        [p('Ryan Cho','rcho@alpha.com'), p('Natalie Berg','nberg@alpha.com'), p('James Harlow','jharlow@mycompany.com'), p('Andrew Miles','amiles@mycompany.com')],
-  'Board meeting':               [p('James Harlow','jharlow@mycompany.com'), p('Elena Voss','evoss@mycompany.com'), p('Andrew Miles','amiles@mycompany.com'), p('Board Member 1','bm1@boardfirm.com'), p('Board Member 2','bm2@boardfirm.com'), p('Board Member 3','bm3@boardfirm.com')],
-  'CEO Search final shortlist':  [p('Claire Sutton','csutton@mycompany.com'), p('Andrew Miles','amiles@mycompany.com'), p('HR Consultant','hr@searchfirm.com')],
-  'AI weekly digest':            [p('Marcus Webb','mwebb@mycompany.com'), p('Priya Nair','pnair@mycompany.com')],
-  'Co. Delta follow-up':         [p('Yuki Tanaka','ytanaka@delta.com'), p('James Harlow','jharlow@mycompany.com')],
-  'Deployment review':           [p('Tom Okafor','tokafor@mycompany.com'), p('Lena Fischer','lfischer@mycompany.com')],
-  'Co. Alpha site visit':        [p('Ryan Cho','rcho@alpha.com'), p('Natalie Berg','nberg@alpha.com'), p('Felix Dumont','fdumont@alpha.com')],
-  'LP dinner':                   [p('James Harlow','jharlow@mycompany.com'), p('David Kim','dkim@lpfund.com'), p('Rachel Stern','rstern@lpfund.com')],
-  'Firm strategy offsite':       [p('James Harlow','jharlow@mycompany.com'), p('Claire Sutton','csutton@mycompany.com'), p('Marcus Webb','mwebb@mycompany.com'), p('Priya Nair','pnair@mycompany.com'), p('Tom Okafor','tokafor@mycompany.com'), p('Diana Reyes','dreyes@mycompany.com'), p('Elena Voss','evoss@mycompany.com'), p('Andrew Miles','amiles@mycompany.com')],
-  'Co. Epsilon follow-up':       [p('Omar Farouk','ofarouk@epsilon.com'), p('Aisha Patel','apatel@epsilon.com')],
-  'Fundraising LP call':         [p('James Harlow','jharlow@mycompany.com'), p('David Kim','dkim@lpfund.com'), p('Rachel Stern','rstern@lpfund.com')],
-  'Co. Gamma product review':    [p('Luis Morales','lmorales@gamma.com'), p('Hannah Johansson','hjohansson@gamma.com'), p('Product Lead','pl@gamma.com')],
-  'Firm ops standup':            [p('James Harlow','jharlow@mycompany.com'), p('Claire Sutton','csutton@mycompany.com'), p('Diana Reyes','dreyes@mycompany.com')],
-  'Co. Alpha pipeline review':   [p('Ryan Cho','rcho@alpha.com'), p('Natalie Berg','nberg@alpha.com')],
-  'LP follow-up call':           [p('James Harlow','jharlow@mycompany.com'), p('David Kim','dkim@lpfund.com')],
-  'CEO Search kickoff':          [p('Claire Sutton','csutton@mycompany.com'), p('Andrew Miles','amiles@mycompany.com'), p('HR Consultant','hr@searchfirm.com')],
-  'Deployment roadmap':          [p('Tom Okafor','tokafor@mycompany.com'), p('Lena Fischer','lfischer@mycompany.com'), p('Dev Team Lead','dev@mycompany.com')],
-  'Fundraising pitch prep':      [p('James Harlow','jharlow@mycompany.com'), p('Elena Voss','evoss@mycompany.com')],
-  'Co. Beta intro':              [p('Sophie Laurent','slaurent@beta.com'), p('Kevin Park','kpark@beta.com')],
-  'Fundraising investor day':    [p('James Harlow','jharlow@mycompany.com'), p('Elena Voss','evoss@mycompany.com'), p('David Kim','dkim@lpfund.com'), p('Rachel Stern','rstern@lpfund.com'), p('LP Guest 1','guest1@lpfund.com'), p('LP Guest 2','guest2@lpfund.com')],
-  'Co. Delta first meeting':     [p('Yuki Tanaka','ytanaka@delta.com'), p('James Harlow','jharlow@mycompany.com')],
-  'Firm partner lunch':          [p('James Harlow','jharlow@mycompany.com'), p('Claire Sutton','csutton@mycompany.com'), p('Andrew Miles','amiles@mycompany.com')],
-  'AI research briefing':        [p('Marcus Webb','mwebb@mycompany.com'), p('Priya Nair','pnair@mycompany.com'), p('Research Lead','rl@ailab.com')],
-  'Co. Gamma board prep':        [p('Luis Morales','lmorales@gamma.com'), p('Hannah Johansson','hjohansson@gamma.com'), p('James Harlow','jharlow@mycompany.com')],
-  'Deployment vendor call':      [p('Tom Okafor','tokafor@mycompany.com'), p('Vendor Rep','rep@vendor.com')],
-  'Fundraising LP update':       [p('James Harlow','jharlow@mycompany.com'), p('David Kim','dkim@lpfund.com')],
-  'Co. Epsilon first look':      [p('Omar Farouk','ofarouk@epsilon.com'), p('Aisha Patel','apatel@epsilon.com'), p('James Harlow','jharlow@mycompany.com')],
-  'Board meeting — Co. Gamma':   [p('James Harlow','jharlow@mycompany.com'), p('Andrew Miles','amiles@mycompany.com'), p('Luis Morales','lmorales@gamma.com'), p('Hannah Johansson','hjohansson@gamma.com'), p('Board Member 1','bm1@boardfirm.com')],
-  'AI strategy session':         [p('Marcus Webb','mwebb@mycompany.com'), p('Priya Nair','pnair@mycompany.com'), p('Sarah Chen','schen@mycompany.com')],
-  'Firm weekly wrap':            [p('James Harlow','jharlow@mycompany.com'), p('Claire Sutton','csutton@mycompany.com'), p('Marcus Webb','mwebb@mycompany.com'), p('Diana Reyes','dreyes@mycompany.com')],
-  'Fundraising LP breakfast':    [p('James Harlow','jharlow@mycompany.com'), p('David Kim','dkim@lpfund.com'), p('LP Guest 1','guest1@lpfund.com')],
-  'Co. Delta deep dive':         [p('Yuki Tanaka','ytanaka@delta.com'), p('James Harlow','jharlow@mycompany.com'), p('Elena Voss','evoss@mycompany.com'), p('Delta Team','team@delta.com')],
-};
+// ── Helper to build Graph API format attendees ────────────────────────────────
+const a = (name, address, type='required') => ({ emailAddress: { name, address }, type });
 
+// ── Raw event data in Microsoft Graph API format ──────────────────────────────
+// This is the format the Office 365 connector will return.
+// start/end are UTC ISO strings. Attendees are on the event.
+// When wiring to real connector, replace RAW_THIS_WEEK and RAW_LAST_WEEK
+// with live API calls and pass through transformEvent().
+
+const RAW_THIS_WEEK = [
+  { id:'ev001', subject:'AI strategy kickoff', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-23T16:30:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-23T18:00:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'James Harlow',address:'jharlow@mycompany.com'}},
+    attendees:[a('Sarah Chen','schen@mycompany.com'),a('Marcus Webb','mwebb@mycompany.com'),a('Priya Nair','pnair@mycompany.com'),a('Tom Okafor','tokafor@mycompany.com'),a('Diana Reyes','dreyes@mycompany.com')],
+    bodyPreview:'Weekly AI strategy session — reviewing portfolio AI initiatives and vendor pipeline.', location:{displayName:'Microsoft Teams Meeting'}, isOnlineMeeting:true, categories:[] },
+
+  { id:'ev001m', subject:'AI strategy kickoff', isAllDay:false, isCancelled:false, isMaterials:true,
+    start:{dateTime:'2026-03-23T16:30:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-23T18:00:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'James Harlow',address:'jharlow@mycompany.com'}},
+    attendees:[], bodyPreview:'', location:{displayName:''}, isOnlineMeeting:false, categories:[] },
+
+  { id:'ev002', subject:'LP update prep call', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-23T18:00:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-23T19:00:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'James Harlow',address:'jharlow@mycompany.com'}},
+    attendees:[a('Elena Voss','evoss@mycompany.com')],
+    bodyPreview:'Prep for LP quarterly update — review deck and talking points.', location:{displayName:'Microsoft Teams Meeting'}, isOnlineMeeting:true, categories:[] },
+
+  { id:'ev003', subject:'Co. Alpha check-in', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-23T19:30:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-23T20:30:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'Ryan Cho',address:'rcho@alpha.com'}},
+    attendees:[a('Natalie Berg','nberg@alpha.com'),a('Felix Dumont','fdumont@alpha.com'),a('James Harlow','jharlow@mycompany.com')],
+    bodyPreview:'Monthly check-in with Co. Alpha leadership on product roadmap and hiring.', location:{displayName:'Microsoft Teams Meeting'}, isOnlineMeeting:true, categories:[] },
+
+  { id:'ev003m', subject:'Co. Alpha check-in', isAllDay:false, isCancelled:false, isMaterials:true,
+    start:{dateTime:'2026-03-23T19:30:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-23T20:30:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'Ryan Cho',address:'rcho@alpha.com'}},
+    attendees:[], bodyPreview:'', location:{displayName:''}, isOnlineMeeting:false, categories:[] },
+
+  { id:'ev004', subject:'CEO Search debrief', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-23T21:00:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-23T21:30:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'Claire Sutton',address:'csutton@mycompany.com'}},
+    attendees:[a('Andrew Miles','amiles@mycompany.com')],
+    bodyPreview:'Debrief on CEO Search candidate pipeline and next steps.', location:{displayName:'Microsoft Teams Meeting'}, isOnlineMeeting:true, categories:[] },
+
+  { id:'ev005', subject:'Firm weekly standup', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-23T22:00:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-23T23:00:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'James Harlow',address:'jharlow@mycompany.com'}},
+    attendees:[a('Claire Sutton','csutton@mycompany.com'),a('Marcus Webb','mwebb@mycompany.com'),a('Priya Nair','pnair@mycompany.com'),a('Tom Okafor','tokafor@mycompany.com'),a('Diana Reyes','dreyes@mycompany.com')],
+    bodyPreview:'Weekly all-hands standup — portfolio updates, priorities, blockers.', location:{displayName:'Microsoft Teams Meeting'}, isOnlineMeeting:true, categories:[] },
+
+  { id:'ev006', subject:'Co. Beta intro call', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-23T23:30:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-24T00:30:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'James Harlow',address:'jharlow@mycompany.com'}},
+    attendees:[a('Sophie Laurent','slaurent@beta.com'),a('Kevin Park','kpark@beta.com'),a('Mia Torres','mtorres@beta.com'),a('Elena Voss','evoss@mycompany.com')],
+    bodyPreview:'Introductory call with Co. Beta — initial fundraising discussion.', location:{displayName:'Microsoft Teams Meeting'}, isOnlineMeeting:true, categories:[] },
+
+  { id:'ev007', subject:'Board meeting prep', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-24T16:00:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-24T17:30:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'James Harlow',address:'jharlow@mycompany.com'}},
+    attendees:[a('Elena Voss','evoss@mycompany.com'),a('Andrew Miles','amiles@mycompany.com')],
+    bodyPreview:'Board prep session — review materials and align on key discussion points.', location:{displayName:'Microsoft Teams Meeting'}, isOnlineMeeting:true, categories:[] },
+
+  { id:'ev007m', subject:'Board meeting prep', isAllDay:false, isCancelled:false, isMaterials:true,
+    start:{dateTime:'2026-03-24T16:00:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-24T17:30:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'James Harlow',address:'jharlow@mycompany.com'}},
+    attendees:[], bodyPreview:'', location:{displayName:''}, isOnlineMeeting:false, categories:[] },
+
+  { id:'ev008', subject:'Co. Beta quarterly review', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-24T18:00:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-24T19:00:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'Sophie Laurent',address:'slaurent@beta.com'}},
+    attendees:[a('Kevin Park','kpark@beta.com'),a('James Harlow','jharlow@mycompany.com'),a('Elena Voss','evoss@mycompany.com')],
+    bodyPreview:'Q1 quarterly business review with Co. Beta team.', location:{displayName:'Microsoft Teams Meeting'}, isOnlineMeeting:true, categories:[] },
+
+  { id:'ev009', subject:'LP roadshow call', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-24T19:30:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-24T20:30:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'James Harlow',address:'jharlow@mycompany.com'}},
+    attendees:[a('David Kim','dkim@lpfund.com'),a('Rachel Stern','rstern@lpfund.com')],
+    bodyPreview:'LP roadshow call — presenting fund thesis and portfolio update.', location:{displayName:'Microsoft Teams Meeting'}, isOnlineMeeting:true, categories:[] },
+
+  { id:'ev010', subject:'AI vendor demo', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-24T21:00:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-24T22:00:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'Marcus Webb',address:'mwebb@mycompany.com'}},
+    attendees:[a('Priya Nair','pnair@mycompany.com'),a('Vendor Rep','rep@aivendor.com')],
+    bodyPreview:'AI tooling vendor demo — evaluating for portfolio deployment.', location:{displayName:'Microsoft Teams Meeting'}, isOnlineMeeting:true, categories:[] },
+
+  { id:'ev011', subject:'Deployment sync', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-24T22:00:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-24T23:00:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'Tom Okafor',address:'tokafor@mycompany.com'}},
+    attendees:[a('Marcus Webb','mwebb@mycompany.com'),a('Lena Fischer','lfischer@mycompany.com')],
+    bodyPreview:'Weekly deployment sync — reviewing capital deployment pipeline and open deals.', location:{displayName:'Microsoft Teams Meeting'}, isOnlineMeeting:true, categories:[] },
+
+  { id:'ev012', subject:'CEO Search candidate review', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-24T23:30:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-25T01:00:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'Claire Sutton',address:'csutton@mycompany.com'}},
+    attendees:[a('Andrew Miles','amiles@mycompany.com'),a('HR Consultant','hr@searchfirm.com')],
+    bodyPreview:'Reviewing CEO Search candidate shortlist — scoring and next steps.', location:{displayName:'Microsoft Teams Meeting'}, isOnlineMeeting:true, categories:[] },
+
+  { id:'ev012m', subject:'CEO Search candidate review', isAllDay:false, isCancelled:false, isMaterials:true,
+    start:{dateTime:'2026-03-24T23:30:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-25T01:00:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'Claire Sutton',address:'csutton@mycompany.com'}},
+    attendees:[], bodyPreview:'', location:{displayName:''}, isOnlineMeeting:false, categories:[] },
+
+  { id:'ev013', subject:'AI portfolio review', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-25T16:00:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-25T17:30:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'Sarah Chen',address:'schen@mycompany.com'}},
+    attendees:[a('Marcus Webb','mwebb@mycompany.com'),a('Priya Nair','pnair@mycompany.com'),a('Tom Okafor','tokafor@mycompany.com')],
+    bodyPreview:'Quarterly AI portfolio review — performance metrics and roadmap updates across AI investments.', location:{displayName:'Microsoft Teams Meeting'}, isOnlineMeeting:true, categories:[] },
+
+  { id:'ev014', subject:'Co. Gamma sync', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-25T17:30:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-25T18:30:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'Luis Morales',address:'lmorales@gamma.com'}},
+    attendees:[a('Hannah Johansson','hjohansson@gamma.com'),a('James Harlow','jharlow@mycompany.com')],
+    bodyPreview:'Monthly sync with Co. Gamma — product update and go-to-market progress.', location:{displayName:'Microsoft Teams Meeting'}, isOnlineMeeting:true, categories:[] },
+
+  { id:'ev014m', subject:'Co. Gamma sync', isAllDay:false, isCancelled:false, isMaterials:true,
+    start:{dateTime:'2026-03-25T17:30:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-25T18:30:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'Luis Morales',address:'lmorales@gamma.com'}},
+    attendees:[], bodyPreview:'', location:{displayName:''}, isOnlineMeeting:false, categories:[] },
+
+  { id:'ev015', subject:'Deployment planning', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-25T19:00:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-25T20:00:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'Tom Okafor',address:'tokafor@mycompany.com'}},
+    attendees:[a('Lena Fischer','lfischer@mycompany.com'),a('Dev Team Lead','dev@mycompany.com'),a('QA Manager','qa@mycompany.com')],
+    bodyPreview:'Deployment planning session — Q2 capital deployment strategy and deal pipeline review.', location:{displayName:'Conference Room A'}, isOnlineMeeting:false, categories:[] },
+
+  { id:'ev016', subject:'Flight UA447 SFO-NYC', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-25T20:30:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-26T00:30:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'James Harlow',address:'jharlow@mycompany.com'}},
+    attendees:[], bodyPreview:'United Airlines UA447 SFO to JFK. Confirmation: L92SC4', location:{displayName:'San Francisco International Airport'}, isOnlineMeeting:false, categories:[] },
+
+  { id:'ev017', subject:'LP investor update call', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-25T20:30:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-25T21:30:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'James Harlow',address:'jharlow@mycompany.com'}},
+    attendees:[a('Elena Voss','evoss@mycompany.com'),a('David Kim','dkim@lpfund.com')],
+    bodyPreview:'LP investor update call — Q1 performance review and portfolio highlights.', location:{displayName:'Microsoft Teams Meeting'}, isOnlineMeeting:true, categories:[] },
+
+  { id:'ev018', subject:'Firm all-hands', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-25T22:00:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-25T23:30:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'James Harlow',address:'jharlow@mycompany.com'}},
+    attendees:[a('Claire Sutton','csutton@mycompany.com'),a('Marcus Webb','mwebb@mycompany.com'),a('Priya Nair','pnair@mycompany.com'),a('Tom Okafor','tokafor@mycompany.com'),a('Diana Reyes','dreyes@mycompany.com'),a('Elena Voss','evoss@mycompany.com'),a('Andrew Miles','amiles@mycompany.com')],
+    bodyPreview:'Monthly firm all-hands — portfolio updates, team announcements, strategy review.', location:{displayName:'Main Conference Room'}, isOnlineMeeting:false, categories:[] },
+
+  { id:'ev019', subject:'CEO Search interviews', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-26T00:00:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-26T01:00:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'Claire Sutton',address:'csutton@mycompany.com'}},
+    attendees:[a('Candidate A','candidatea@gmail.com'),a('Candidate B','candidateb@gmail.com')],
+    bodyPreview:'CEO Search first-round interviews with shortlisted candidates.', location:{displayName:'Microsoft Teams Meeting'}, isOnlineMeeting:true, categories:[] },
+
+  { id:'ev020', subject:'Co. Delta term sheet review', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-26T17:00:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-26T18:30:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'James Harlow',address:'jharlow@mycompany.com'}},
+    attendees:[a('Yuki Tanaka','ytanaka@delta.com'),a('Elena Voss','evoss@mycompany.com')],
+    bodyPreview:'Reviewing Co. Delta term sheet — valuation, structure, and closing timeline. Fundraising component included.', location:{displayName:'Microsoft Teams Meeting'}, isOnlineMeeting:true, categories:[] },
+
+  { id:'ev020m', subject:'Co. Delta term sheet review', isAllDay:false, isCancelled:false, isMaterials:true,
+    start:{dateTime:'2026-03-26T17:00:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-26T18:30:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'James Harlow',address:'jharlow@mycompany.com'}},
+    attendees:[], bodyPreview:'', location:{displayName:''}, isOnlineMeeting:false, categories:[] },
+
+  { id:'ev021', subject:'Fundraising LP pipeline', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-26T19:00:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-26T20:00:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'James Harlow',address:'jharlow@mycompany.com'}},
+    attendees:[a('David Kim','dkim@lpfund.com')],
+    bodyPreview:'LP fundraising pipeline review — tracking commitments and follow-ups.', location:{displayName:'Microsoft Teams Meeting'}, isOnlineMeeting:true, categories:[] },
+
+  { id:'ev022', subject:'Doctor appointment', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-26T21:00:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-26T22:00:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'James Harlow',address:'jharlow@mycompany.com'}},
+    attendees:[], bodyPreview:'Annual physical with Dr. Chen — Stanford Medical.', location:{displayName:'Stanford Medical Center'}, isOnlineMeeting:false, categories:[] },
+
+  { id:'ev023', subject:'Co. Epsilon intro call', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-26T22:30:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-26T23:30:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'Omar Farouk',address:'ofarouk@epsilon.com'}},
+    attendees:[a('Aisha Patel','apatel@epsilon.com'),a('James Harlow','jharlow@mycompany.com'),a('Elena Voss','evoss@mycompany.com')],
+    bodyPreview:'First call with Co. Epsilon — intro to team, product, and early traction.', location:{displayName:'Microsoft Teams Meeting'}, isOnlineMeeting:true, categories:[] },
+
+  { id:'ev024', subject:'Co. Alpha board call', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-27T00:00:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-27T01:00:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'Ryan Cho',address:'rcho@alpha.com'}},
+    attendees:[a('Natalie Berg','nberg@alpha.com'),a('James Harlow','jharlow@mycompany.com'),a('Andrew Miles','amiles@mycompany.com')],
+    bodyPreview:'Co. Alpha monthly board call — financials, KPIs, and strategic updates.', location:{displayName:'Microsoft Teams Meeting'}, isOnlineMeeting:true, categories:[] },
+
+  { id:'ev024m', subject:'Co. Alpha board call', isAllDay:false, isCancelled:false, isMaterials:true,
+    start:{dateTime:'2026-03-27T00:00:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-27T01:00:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'Ryan Cho',address:'rcho@alpha.com'}},
+    attendees:[], bodyPreview:'', location:{displayName:''}, isOnlineMeeting:false, categories:[] },
+
+  { id:'ev025', subject:'Board meeting', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-27T17:00:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-27T20:00:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'James Harlow',address:'jharlow@mycompany.com'}},
+    attendees:[a('Elena Voss','evoss@mycompany.com'),a('Andrew Miles','amiles@mycompany.com'),a('Board Member 1','bm1@boardfirm.com'),a('Board Member 2','bm2@boardfirm.com'),a('Board Member 3','bm3@boardfirm.com')],
+    bodyPreview:'Quarterly board meeting — portfolio review, fund performance, strategic initiatives.', location:{displayName:'Firm HQ Boardroom'}, isOnlineMeeting:false, categories:[] },
+
+  { id:'ev025m', subject:'Board meeting', isAllDay:false, isCancelled:false, isMaterials:true,
+    start:{dateTime:'2026-03-27T17:00:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-27T20:00:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'James Harlow',address:'jharlow@mycompany.com'}},
+    attendees:[], bodyPreview:'', location:{displayName:''}, isOnlineMeeting:false, categories:[] },
+
+  { id:'ev026', subject:'CEO Search final shortlist', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-27T21:00:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-27T22:30:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'Claire Sutton',address:'csutton@mycompany.com'}},
+    attendees:[a('Andrew Miles','amiles@mycompany.com'),a('HR Consultant','hr@searchfirm.com')],
+    bodyPreview:'CEO Search final shortlist review — ranking top candidates and deciding on final round.', location:{displayName:'Microsoft Teams Meeting'}, isOnlineMeeting:true, categories:[] },
+
+  { id:'ev027', subject:'AI weekly digest', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-27T23:00:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-27T23:30:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'Marcus Webb',address:'mwebb@mycompany.com'}},
+    attendees:[a('Priya Nair','pnair@mycompany.com')],
+    bodyPreview:'Weekly AI digest — notable papers, industry news, and portfolio AI updates.', location:{displayName:'Microsoft Teams Meeting'}, isOnlineMeeting:true, categories:[] },
+
+  { id:'ev028', subject:'Co. Delta follow-up', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-27T23:30:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-28T00:30:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'Yuki Tanaka',address:'ytanaka@delta.com'}},
+    attendees:[a('James Harlow','jharlow@mycompany.com'),a('Elena Voss','evoss@mycompany.com')],
+    bodyPreview:'Follow-up on term sheet discussion — addressing open questions from Co. Delta.', location:{displayName:'Microsoft Teams Meeting'}, isOnlineMeeting:true, categories:[] },
+
+  { id:'ev029', subject:'Deployment review', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-28T00:30:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-28T01:30:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'Tom Okafor',address:'tokafor@mycompany.com'}},
+    attendees:[a('Lena Fischer','lfischer@mycompany.com'),a('Andrew Miles','amiles@mycompany.com')],
+    bodyPreview:'End of week deployment review — YTD capital deployed vs. target.', location:{displayName:'Microsoft Teams Meeting'}, isOnlineMeeting:true, categories:[] },
+
+  { id:'ev030', subject:'Co. Alpha site visit', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-28T17:00:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-28T20:00:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'Ryan Cho',address:'rcho@alpha.com'}},
+    attendees:[a('Natalie Berg','nberg@alpha.com'),a('Felix Dumont','fdumont@alpha.com'),a('James Harlow','jharlow@mycompany.com')],
+    bodyPreview:'On-site visit to Co. Alpha HQ — office tour, team introductions, product demo.', location:{displayName:'Co. Alpha HQ, Palo Alto'}, isOnlineMeeting:false, categories:[] },
+
+  { id:'ev031', subject:'LP dinner', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-29T01:00:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-29T02:00:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'James Harlow',address:'jharlow@mycompany.com'}},
+    attendees:[a('David Kim','dkim@lpfund.com'),a('Rachel Stern','rstern@lpfund.com')],
+    bodyPreview:'LP relationship dinner — informal update and relationship building.', location:{displayName:'Bix Restaurant, San Francisco'}, isOnlineMeeting:false, categories:[] },
+
+  { id:'ev032', subject:'Firm strategy offsite', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-29T17:00:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-29T21:00:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'James Harlow',address:'jharlow@mycompany.com'}},
+    attendees:[a('Claire Sutton','csutton@mycompany.com'),a('Marcus Webb','mwebb@mycompany.com'),a('Priya Nair','pnair@mycompany.com'),a('Tom Okafor','tokafor@mycompany.com'),a('Diana Reyes','dreyes@mycompany.com'),a('Elena Voss','evoss@mycompany.com'),a('Andrew Miles','amiles@mycompany.com')],
+    bodyPreview:'Annual firm strategy offsite — 2026 fund strategy, portfolio priorities, team goals.', location:{displayName:'Cavallo Point Lodge, Sausalito'}, isOnlineMeeting:false, categories:[] },
+
+  { id:'ev033', subject:'Co. Epsilon follow-up', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-29T22:00:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-29T23:00:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'Omar Farouk',address:'ofarouk@epsilon.com'}},
+    attendees:[a('Aisha Patel','apatel@epsilon.com'),a('James Harlow','jharlow@mycompany.com')],
+    bodyPreview:'Follow-up from intro call — sharing deck and data room access.', location:{displayName:'Microsoft Teams Meeting'}, isOnlineMeeting:true, categories:[] },
+];
+
+const RAW_LAST_WEEK = [
+  { id:'lw001', subject:'Fundraising LP call', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-16T16:30:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-16T18:00:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'James Harlow',address:'jharlow@mycompany.com'}},
+    attendees:[a('David Kim','dkim@lpfund.com'),a('Rachel Stern','rstern@lpfund.com')],
+    bodyPreview:'LP quarterly update call — fund performance and portfolio highlights.', location:{displayName:'Microsoft Teams Meeting'}, isOnlineMeeting:true, categories:[] },
+
+  { id:'lw001m', subject:'Fundraising LP call', isAllDay:false, isCancelled:false, isMaterials:true,
+    start:{dateTime:'2026-03-16T16:30:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-16T18:00:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'James Harlow',address:'jharlow@mycompany.com'}},
+    attendees:[], bodyPreview:'', location:{displayName:''}, isOnlineMeeting:false, categories:[] },
+
+  { id:'lw002', subject:'Co. Gamma product review', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-16T18:30:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-16T20:00:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'Luis Morales',address:'lmorales@gamma.com'}},
+    attendees:[a('Hannah Johansson','hjohansson@gamma.com'),a('Product Lead','pl@gamma.com'),a('James Harlow','jharlow@mycompany.com')],
+    bodyPreview:'Co. Gamma product roadmap review — Q2 priorities and feature releases.', location:{displayName:'Microsoft Teams Meeting'}, isOnlineMeeting:true, categories:[] },
+
+  { id:'lw003', subject:'Firm ops standup', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-16T21:00:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-16T22:00:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'Claire Sutton',address:'csutton@mycompany.com'}},
+    attendees:[a('Diana Reyes','dreyes@mycompany.com'),a('James Harlow','jharlow@mycompany.com')],
+    bodyPreview:'Weekly ops standup — fund admin, compliance, and team operations.', location:{displayName:'Microsoft Teams Meeting'}, isOnlineMeeting:true, categories:[] },
+
+  { id:'lw004', subject:'Co. Alpha pipeline review', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-16T22:30:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-16T23:30:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'Ryan Cho',address:'rcho@alpha.com'}},
+    attendees:[a('Natalie Berg','nberg@alpha.com'),a('James Harlow','jharlow@mycompany.com')],
+    bodyPreview:'Co. Alpha sales pipeline review — Q1 actuals and Q2 forecast.', location:{displayName:'Microsoft Teams Meeting'}, isOnlineMeeting:true, categories:[] },
+
+  { id:'lw005', subject:'LP follow-up call', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-17T00:00:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-17T01:00:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'James Harlow',address:'jharlow@mycompany.com'}},
+    attendees:[a('David Kim','dkim@lpfund.com')],
+    bodyPreview:'Follow-up from last week LP call — answering due diligence questions.', location:{displayName:'Microsoft Teams Meeting'}, isOnlineMeeting:true, categories:[] },
+
+  { id:'lw006', subject:'CEO Search kickoff', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-17T16:00:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-17T17:30:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'Claire Sutton',address:'csutton@mycompany.com'}},
+    attendees:[a('Andrew Miles','amiles@mycompany.com'),a('HR Consultant','hr@searchfirm.com')],
+    bodyPreview:'CEO Search kickoff with search firm — defining the role, timeline, and candidate criteria.', location:{displayName:'Microsoft Teams Meeting'}, isOnlineMeeting:true, categories:[] },
+
+  { id:'lw006m', subject:'CEO Search kickoff', isAllDay:false, isCancelled:false, isMaterials:true,
+    start:{dateTime:'2026-03-17T16:00:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-17T17:30:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'Claire Sutton',address:'csutton@mycompany.com'}},
+    attendees:[], bodyPreview:'', location:{displayName:''}, isOnlineMeeting:false, categories:[] },
+
+  { id:'lw007', subject:'Deployment roadmap', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-17T18:00:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-17T19:30:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'Tom Okafor',address:'tokafor@mycompany.com'}},
+    attendees:[a('Lena Fischer','lfischer@mycompany.com'),a('Dev Team Lead','dev@mycompany.com')],
+    bodyPreview:'Q2 deployment roadmap session — prioritizing deals and allocating capital.', location:{displayName:'Conference Room B'}, isOnlineMeeting:false, categories:[] },
+
+  { id:'lw008', subject:'Fundraising pitch prep', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-17T20:00:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-17T21:30:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'James Harlow',address:'jharlow@mycompany.com'}},
+    attendees:[a('Elena Voss','evoss@mycompany.com')],
+    bodyPreview:'Pitch prep for upcoming LP meeting — refining deck and anticipating questions.', location:{displayName:'Microsoft Teams Meeting'}, isOnlineMeeting:true, categories:[] },
+
+  { id:'lw008m', subject:'Fundraising pitch prep', isAllDay:false, isCancelled:false, isMaterials:true,
+    start:{dateTime:'2026-03-17T20:00:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-17T21:30:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'James Harlow',address:'jharlow@mycompany.com'}},
+    attendees:[], bodyPreview:'', location:{displayName:''}, isOnlineMeeting:false, categories:[] },
+
+  { id:'lw009', subject:'Co. Beta intro', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-17T22:00:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-17T23:00:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'Sophie Laurent',address:'slaurent@beta.com'}},
+    attendees:[a('Kevin Park','kpark@beta.com'),a('James Harlow','jharlow@mycompany.com'),a('Elena Voss','evoss@mycompany.com')],
+    bodyPreview:'Initial intro call with Co. Beta founding team — product demo and early metrics.', location:{displayName:'Microsoft Teams Meeting'}, isOnlineMeeting:true, categories:[] },
+
+  { id:'lw010', subject:'Personal - dentist', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-17T23:30:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-18T00:30:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'James Harlow',address:'jharlow@mycompany.com'}},
+    attendees:[], bodyPreview:'Dentist appointment — annual cleaning, Dr. Miller.', location:{displayName:'SF Dental Associates'}, isOnlineMeeting:false, categories:[] },
+
+  { id:'lw011', subject:'Fundraising investor day', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-18T16:00:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-18T19:00:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'James Harlow',address:'jharlow@mycompany.com'}},
+    attendees:[a('Elena Voss','evoss@mycompany.com'),a('David Kim','dkim@lpfund.com'),a('Rachel Stern','rstern@lpfund.com'),a('LP Guest 1','guest1@lpfund.com'),a('LP Guest 2','guest2@lpfund.com')],
+    bodyPreview:'Annual investor day — fund thesis presentation, portfolio company showcases, LP Q&A.', location:{displayName:'Firm HQ'}, isOnlineMeeting:false, categories:[] },
+
+  { id:'lw011m', subject:'Fundraising investor day', isAllDay:false, isCancelled:false, isMaterials:true,
+    start:{dateTime:'2026-03-18T16:00:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-18T19:00:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'James Harlow',address:'jharlow@mycompany.com'}},
+    attendees:[], bodyPreview:'', location:{displayName:''}, isOnlineMeeting:false, categories:[] },
+
+  { id:'lw012', subject:'Co. Delta first meeting', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-18T19:30:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-18T20:30:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'Yuki Tanaka',address:'ytanaka@delta.com'}},
+    attendees:[a('James Harlow','jharlow@mycompany.com'),a('Elena Voss','evoss@mycompany.com')],
+    bodyPreview:'First meeting with Co. Delta founders — company overview and initial diligence.', location:{displayName:'Microsoft Teams Meeting'}, isOnlineMeeting:true, categories:[] },
+
+  { id:'lw013', subject:'Firm partner lunch', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-18T21:00:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-18T22:00:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'James Harlow',address:'jharlow@mycompany.com'}},
+    attendees:[a('Claire Sutton','csutton@mycompany.com'),a('Andrew Miles','amiles@mycompany.com')],
+    bodyPreview:'Weekly partner lunch — informal strategy discussion and portfolio updates.', location:{displayName:'Cotogna Restaurant, SF'}, isOnlineMeeting:false, categories:[] },
+
+  { id:'lw014', subject:'AI research briefing', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-18T22:30:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-18T23:30:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'Marcus Webb',address:'mwebb@mycompany.com'}},
+    attendees:[a('Priya Nair','pnair@mycompany.com'),a('Research Lead','rl@ailab.com')],
+    bodyPreview:'Monthly AI research briefing — frontier model updates and investment implications.', location:{displayName:'Microsoft Teams Meeting'}, isOnlineMeeting:true, categories:[] },
+
+  { id:'lw015', subject:'Flight UA210 NYC-SFO', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-19T00:00:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-19T04:00:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'James Harlow',address:'jharlow@mycompany.com'}},
+    attendees:[], bodyPreview:'United Airlines UA210 JFK to SFO. Confirmation: M84XK2', location:{displayName:'JFK International Airport'}, isOnlineMeeting:false, categories:[] },
+
+  { id:'lw016', subject:'CEO Search interviews', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-19T00:00:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-19T01:30:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'Claire Sutton',address:'csutton@mycompany.com'}},
+    attendees:[a('Candidate A','candidatea@gmail.com'),a('Candidate B','candidateb@gmail.com')],
+    bodyPreview:'CEO Search first round interviews.', location:{displayName:'Microsoft Teams Meeting'}, isOnlineMeeting:true, categories:[] },
+
+  { id:'lw017', subject:'Co. Gamma board prep', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-19T17:00:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-19T18:30:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'Luis Morales',address:'lmorales@gamma.com'}},
+    attendees:[a('Hannah Johansson','hjohansson@gamma.com'),a('James Harlow','jharlow@mycompany.com'),a('Andrew Miles','amiles@mycompany.com')],
+    bodyPreview:'Co. Gamma board prep — pre-read materials and agenda alignment.', location:{displayName:'Microsoft Teams Meeting'}, isOnlineMeeting:true, categories:[] },
+
+  { id:'lw017m', subject:'Co. Gamma board prep', isAllDay:false, isCancelled:false, isMaterials:true,
+    start:{dateTime:'2026-03-19T17:00:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-19T18:30:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'Luis Morales',address:'lmorales@gamma.com'}},
+    attendees:[], bodyPreview:'', location:{displayName:''}, isOnlineMeeting:false, categories:[] },
+
+  { id:'lw018', subject:'Deployment vendor call', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-19T19:00:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-19T20:00:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'Tom Okafor',address:'tokafor@mycompany.com'}},
+    attendees:[a('Vendor Rep','rep@vendor.com')],
+    bodyPreview:'Deployment tooling vendor call — evaluating new deal flow software.', location:{displayName:'Microsoft Teams Meeting'}, isOnlineMeeting:true, categories:[] },
+
+  { id:'lw019', subject:'Fundraising LP update', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-19T21:00:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-19T22:00:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'James Harlow',address:'jharlow@mycompany.com'}},
+    attendees:[a('David Kim','dkim@lpfund.com')],
+    bodyPreview:'Quarterly LP update follow-up — addressing additional questions from investor day.', location:{displayName:'Microsoft Teams Meeting'}, isOnlineMeeting:true, categories:[] },
+
+  { id:'lw020', subject:'Co. Epsilon first look', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-19T22:30:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-19T23:30:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'Omar Farouk',address:'ofarouk@epsilon.com'}},
+    attendees:[a('Aisha Patel','apatel@epsilon.com'),a('James Harlow','jharlow@mycompany.com')],
+    bodyPreview:'First look at Co. Epsilon — warm intro from network, early stage AI startup.', location:{displayName:'Microsoft Teams Meeting'}, isOnlineMeeting:true, categories:[] },
+
+  { id:'lw021', subject:'CEO Search debrief', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-20T00:00:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-20T01:00:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'Claire Sutton',address:'csutton@mycompany.com'}},
+    attendees:[a('Andrew Miles','amiles@mycompany.com')],
+    bodyPreview:'CEO Search debrief after first round interviews — scoring candidates and deciding on finalists.', location:{displayName:'Microsoft Teams Meeting'}, isOnlineMeeting:true, categories:[] },
+
+  { id:'lw022', subject:'Board meeting — Co. Gamma', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-20T17:00:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-20T19:30:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'Luis Morales',address:'lmorales@gamma.com'}},
+    attendees:[a('Hannah Johansson','hjohansson@gamma.com'),a('James Harlow','jharlow@mycompany.com'),a('Andrew Miles','amiles@mycompany.com'),a('Board Member 1','bm1@boardfirm.com')],
+    bodyPreview:'Co. Gamma quarterly board meeting — financials, product roadmap, and strategic priorities.', location:{displayName:'Co. Gamma HQ'}, isOnlineMeeting:false, categories:[] },
+
+  { id:'lw022m', subject:'Board meeting — Co. Gamma', isAllDay:false, isCancelled:false, isMaterials:true,
+    start:{dateTime:'2026-03-20T17:00:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-20T19:30:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'Luis Morales',address:'lmorales@gamma.com'}},
+    attendees:[], bodyPreview:'', location:{displayName:''}, isOnlineMeeting:false, categories:[] },
+
+  { id:'lw023', subject:'AI strategy session', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-20T20:00:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-20T21:30:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'Marcus Webb',address:'mwebb@mycompany.com'}},
+    attendees:[a('Priya Nair','pnair@mycompany.com'),a('Sarah Chen','schen@mycompany.com'),a('James Harlow','jharlow@mycompany.com')],
+    bodyPreview:'Firm AI strategy session — reviewing AI investment thesis and portfolio positioning.', location:{displayName:'Microsoft Teams Meeting'}, isOnlineMeeting:true, categories:[] },
+
+  { id:'lw024', subject:'Co. Alpha check-in', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-20T22:00:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-20T23:00:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'Ryan Cho',address:'rcho@alpha.com'}},
+    attendees:[a('Natalie Berg','nberg@alpha.com'),a('James Harlow','jharlow@mycompany.com')],
+    bodyPreview:'Bi-weekly Co. Alpha check-in — operational update and open items.', location:{displayName:'Microsoft Teams Meeting'}, isOnlineMeeting:true, categories:[] },
+
+  { id:'lw025', subject:'Firm weekly wrap', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-20T23:30:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-21T00:30:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'James Harlow',address:'jharlow@mycompany.com'}},
+    attendees:[a('Claire Sutton','csutton@mycompany.com'),a('Marcus Webb','mwebb@mycompany.com'),a('Diana Reyes','dreyes@mycompany.com')],
+    bodyPreview:'End of week firm wrap — wins, pipeline updates, next week priorities.', location:{displayName:'Microsoft Teams Meeting'}, isOnlineMeeting:true, categories:[] },
+
+  { id:'lw026', subject:'Fundraising LP breakfast', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-21T16:00:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-21T17:30:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'James Harlow',address:'jharlow@mycompany.com'}},
+    attendees:[a('David Kim','dkim@lpfund.com'),a('LP Guest 1','guest1@lpfund.com')],
+    bodyPreview:'Saturday breakfast with LP — informal relationship building and fund update.', location:{displayName:'Tartine Manufactory, SF'}, isOnlineMeeting:false, categories:[] },
+
+  { id:'lw027', subject:'Co. Delta deep dive', isAllDay:false, isCancelled:false, isMaterials:false,
+    start:{dateTime:'2026-03-22T18:00:00.0000000',timeZone:'UTC'}, end:{dateTime:'2026-03-22T20:00:00.0000000',timeZone:'UTC'},
+    organizer:{emailAddress:{name:'Yuki Tanaka',address:'ytanaka@delta.com'}},
+    attendees:[a('James Harlow','jharlow@mycompany.com'),a('Elena Voss','evoss@mycompany.com'),a('Delta Team','team@delta.com')],
+    bodyPreview:'Co. Delta deep dive — technical architecture review and market analysis.', location:{displayName:'Microsoft Teams Meeting'}, isOnlineMeeting:true, categories:[] },
+];
+
+// ── Transform function: Graph API event → app event format ───────────────────
+// This is the single function to update when wiring the real Office 365 connector.
+// All other code uses the transformed format.
+const WEEK_START_THIS = new Date('2026-03-23T12:00:00Z');
+const WEEK_START_LAST = new Date('2026-03-16T12:00:00Z');
+const PT_TIMEZONE = 'America/Los_Angeles'; // Handles PST (UTC-8) and PDT (UTC-7) automatically
+
+function utcToDecimalHoursPT(dateTimeStr) {
+  const d = new Date(dateTimeStr.endsWith('Z') ? dateTimeStr : dateTimeStr + 'Z');
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: PT_TIMEZONE,
+    hour: 'numeric',
+    minute: 'numeric',
+    hour12: false,
+  }).formatToParts(d);
+  const hour = parseInt(parts.find(p => p.type === 'hour').value);
+  const minute = parseInt(parts.find(p => p.type === 'minute').value);
+  return hour + minute / 60;
+}
+
+function getDayIndex(dateTimeStr, weekStart) {
+  const d = new Date(dateTimeStr.endsWith('Z') ? dateTimeStr : dateTimeStr + 'Z');
+  const ptDateStr = new Intl.DateTimeFormat('en-CA', {
+    timeZone: PT_TIMEZONE,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(d); // returns YYYY-MM-DD format
+  const evMidnight = new Date(ptDateStr + 'T00:00:00');
+  const startDateStr = new Intl.DateTimeFormat('en-CA', {
+    timeZone: PT_TIMEZONE,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(weekStart);
+  const startMidnight = new Date(startDateStr + 'T00:00:00');
+  const dayIndex = Math.round((evMidnight - startMidnight) / 86400000);
+  return Math.max(0, Math.min(6, dayIndex));
+}
+
+function transformEvent(raw, weekStart) {
+  return {
+    id: raw.id,
+    title: raw.subject,
+    start: utcToDecimalHoursPT(raw.start.dateTime),
+    end: utcToDecimalHoursPT(raw.end.dateTime),
+    day: getDayIndex(raw.start.dateTime, weekStart),
+    isAllDay: raw.isAllDay || false,
+    isMaterials: raw.isMaterials || false,
+    isCancelled: raw.isCancelled || false,
+    isOnlineMeeting: raw.isOnlineMeeting || false,
+    organizer: raw.organizer?.emailAddress?.address || '',
+    organizerName: raw.organizer?.emailAddress?.name || '',
+    attendees: (raw.attendees || []).map(att => ({
+      name: att.emailAddress?.name || '',
+      email: att.emailAddress?.address || '',
+    })),
+    bodyPreview: raw.bodyPreview || '',
+    location: raw.location?.displayName || '',
+    categories: raw.categories || [],
+    cats: [], // no fallback — rules and AI must categorize
+  };
+}
+
+const thisWeekEvents = RAW_THIS_WEEK.map(e => transformEvent(e, WEEK_START_THIS));
+const lastWeekEvents = RAW_LAST_WEEK.map(e => transformEvent(e, WEEK_START_LAST));
+
+const THIS_WEEK_LABELS = ['Mon Mar 23','Tue Mar 24','Wed Mar 25','Thu Mar 26','Fri Mar 27','Sat Mar 28','Sun Mar 29'];
+const LAST_WEEK_LABELS = ['Mon Mar 16','Tue Mar 17','Wed Mar 18','Thu Mar 19','Fri Mar 20','Sat Mar 21','Sun Mar 22'];
+
+// ── Attendee helpers ──────────────────────────────────────────────────────────
 function getAttendees(ev) {
-  return ATTENDEES[ev.title] || [];
+  return ev.attendees || [];
 }
 
 function formatAttendees(ev) {
   const list = getAttendees(ev);
   if (!list.length) return '—';
-  const names = list.map(a => a.name);
+  const names = list.map(a => a.name).filter(Boolean);
+  if (!names.length) return '—';
   if (names.length <= 3) return names.join(', ');
   return names.slice(0, 3).join(', ') + ` +${names.length - 3} more`;
 }
-
-// ── This week events (Mar 23–29) ──────────────────────────────────────────────
-const thisWeekEvents = [
-  { day:0, title:'AI strategy kickoff',          cats:['AI'],                       start:8.5,  end:10.0 },
-  { day:0, title:'AI strategy kickoff',          cats:['AI'],                       start:8.5,  end:10.0, isMaterials:true },
-  { day:0, title:'LP update prep call',          cats:['Fundraising'],              start:10.0, end:11.0 },
-  { day:0, title:'Co. Alpha check-in',           cats:['Co. Alpha'],                start:11.5, end:12.5 },
-  { day:0, title:'Co. Alpha check-in',           cats:['Co. Alpha'],                start:11.5, end:12.5, isMaterials:true },
-  { day:0, title:'CEO Search debrief',           cats:['CEO Searches'],             start:13.0, end:13.5 },
-  { day:0, title:'Firm weekly standup',          cats:['Firm Related'],             start:14.0, end:15.0 },
-  { day:0, title:'Co. Beta intro call',          cats:['Co. Beta','Fundraising'],   start:15.5, end:16.5 },
-  { day:1, title:'Board meeting prep',           cats:['Board Meetings'],           start:8.0,  end:9.5  },
-  { day:1, title:'Board meeting prep',           cats:['Board Meetings'],           start:8.0,  end:9.5,  isMaterials:true },
-  { day:1, title:'Co. Beta quarterly review',    cats:['Co. Beta'],                 start:10.0, end:11.0 },
-  { day:1, title:'LP roadshow call',             cats:['Fundraising'],              start:11.5, end:12.5 },
-  { day:1, title:'AI vendor demo',               cats:['AI'],                       start:13.0, end:14.0 },
-  { day:1, title:'Deployment sync',              cats:['Deployment','AI'],          start:14.0, end:15.0 },
-  { day:1, title:'CEO Search candidate review',  cats:['CEO Searches'],             start:15.5, end:17.0 },
-  { day:1, title:'CEO Search candidate review',  cats:['CEO Searches'],             start:15.5, end:17.0, isMaterials:true },
-  { day:2, title:'AI portfolio review',          cats:['AI'],                       start:8.0,  end:9.5  },
-  { day:2, title:'Co. Gamma sync',               cats:['Co. Gamma'],                start:9.5,  end:10.5 },
-  { day:2, title:'Co. Gamma sync',               cats:['Co. Gamma'],                start:9.5,  end:10.5, isMaterials:true },
-  { day:2, title:'Deployment planning',          cats:['Deployment'],               start:11.0, end:12.0 },
-  { day:2, title:'Flight UA447 SFO-NYC',         cats:['Personal'],                 start:12.5, end:16.5 },
-  { day:2, title:'LP investor update call',      cats:['Fundraising'],              start:12.5, end:13.5 },
-  { day:2, title:'Firm all-hands',               cats:['Firm Related'],             start:14.0, end:15.5 },
-  { day:2, title:'CEO Search interviews',        cats:['CEO Searches'],             start:16.0, end:17.0 },
-  { day:3, title:'Co. Delta term sheet review',  cats:['Co. Delta','Fundraising'],  start:9.0,  end:10.5 },
-  { day:3, title:'Co. Delta term sheet review',  cats:['Co. Delta','Fundraising'],  start:9.0,  end:10.5, isMaterials:true },
-  { day:3, title:'Fundraising LP pipeline',      cats:['Fundraising'],              start:11.0, end:12.0 },
-  { day:3, title:'Doctor appointment',           cats:['Personal'],                 start:13.0, end:14.0 },
-  { day:3, title:'Co. Epsilon intro call',       cats:['Co. Epsilon'],              start:14.5, end:15.5 },
-  { day:3, title:'Co. Alpha board call',         cats:['Co. Alpha','Board Meetings'],start:16.0, end:17.0 },
-  { day:3, title:'Co. Alpha board call',         cats:['Co. Alpha','Board Meetings'],start:16.0, end:17.0, isMaterials:true },
-  { day:4, title:'Board meeting',                cats:['Board Meetings'],           start:9.0,  end:12.0 },
-  { day:4, title:'Board meeting',                cats:['Board Meetings'],           start:9.0,  end:12.0, isMaterials:true },
-  { day:4, title:'CEO Search final shortlist',   cats:['CEO Searches'],             start:13.0, end:14.5 },
-  { day:4, title:'AI weekly digest',             cats:['AI'],                       start:15.0, end:15.5 },
-  { day:4, title:'Co. Delta follow-up',          cats:['Co. Delta'],                start:15.5, end:16.5 },
-  { day:4, title:'Deployment review',            cats:['Deployment'],               start:16.5, end:17.5 },
-  { day:5, title:'Co. Alpha site visit',         cats:['Co. Alpha'],                start:9.0,  end:12.0 },
-  { day:5, title:'LP dinner',                    cats:['Fundraising','Personal'],   start:18.0, end:19.0 },
-  { day:6, title:'Firm strategy offsite',        cats:['Firm Related'],             start:9.0,  end:13.0 },
-  { day:6, title:'Co. Epsilon follow-up',        cats:['Co. Epsilon'],              start:14.0, end:15.0 },
-];
-
-// ── Last week events (Mar 16–22) ──────────────────────────────────────────────
-const lastWeekEvents = [
-  { day:0, title:'Fundraising LP call',          cats:['Fundraising'],              start:8.5,  end:10.0 },
-  { day:0, title:'Fundraising LP call',          cats:['Fundraising'],              start:8.5,  end:10.0, isMaterials:true },
-  { day:0, title:'Co. Gamma product review',     cats:['Co. Gamma'],                start:10.5, end:12.0 },
-  { day:0, title:'Firm ops standup',             cats:['Firm Related'],             start:13.0, end:14.0 },
-  { day:0, title:'Co. Alpha pipeline review',    cats:['Co. Alpha'],                start:14.5, end:15.5 },
-  { day:0, title:'LP follow-up call',            cats:['Fundraising'],              start:16.0, end:17.0 },
-  { day:1, title:'CEO Search kickoff',           cats:['CEO Searches'],             start:8.0,  end:9.5  },
-  { day:1, title:'CEO Search kickoff',           cats:['CEO Searches'],             start:8.0,  end:9.5,  isMaterials:true },
-  { day:1, title:'Deployment roadmap',           cats:['Deployment'],               start:10.0, end:11.5 },
-  { day:1, title:'Fundraising pitch prep',       cats:['Fundraising'],              start:12.0, end:13.5 },
-  { day:1, title:'Fundraising pitch prep',       cats:['Fundraising'],              start:12.0, end:13.5, isMaterials:true },
-  { day:1, title:'Co. Beta intro',               cats:['Co. Beta'],                 start:14.0, end:15.0 },
-  { day:1, title:'Personal - dentist',           cats:['Personal'],                 start:15.5, end:16.5 },
-  { day:2, title:'Fundraising investor day',     cats:['Fundraising'],              start:8.0,  end:11.0 },
-  { day:2, title:'Fundraising investor day',     cats:['Fundraising'],              start:8.0,  end:11.0, isMaterials:true },
-  { day:2, title:'Co. Delta first meeting',      cats:['Co. Delta'],                start:11.5, end:12.5 },
-  { day:2, title:'Firm partner lunch',           cats:['Firm Related'],             start:13.0, end:14.0 },
-  { day:2, title:'AI research briefing',         cats:['AI'],                       start:14.5, end:15.5 },
-  { day:2, title:'Flight UA210 NYC-SFO',         cats:['Personal'],                 start:16.0, end:19.0 },
-  { day:2, title:'CEO Search interviews',        cats:['CEO Searches'],             start:16.0, end:17.5 },
-  { day:3, title:'Co. Gamma board prep',         cats:['Co. Gamma','Board Meetings'],start:9.0, end:10.5 },
-  { day:3, title:'Co. Gamma board prep',         cats:['Co. Gamma','Board Meetings'],start:9.0, end:10.5, isMaterials:true },
-  { day:3, title:'Deployment vendor call',       cats:['Deployment'],               start:11.0, end:12.0 },
-  { day:3, title:'Fundraising LP update',        cats:['Fundraising'],              start:13.0, end:14.0 },
-  { day:3, title:'Co. Epsilon first look',       cats:['Co. Epsilon'],              start:14.5, end:15.5 },
-  { day:3, title:'CEO Search debrief',           cats:['CEO Searches'],             start:16.0, end:17.0 },
-  { day:4, title:'Board meeting — Co. Gamma',    cats:['Board Meetings','Co. Gamma'],start:9.0, end:11.5 },
-  { day:4, title:'Board meeting — Co. Gamma',    cats:['Board Meetings','Co. Gamma'],start:9.0, end:11.5, isMaterials:true },
-  { day:4, title:'AI strategy session',          cats:['AI'],                       start:12.0, end:13.5 },
-  { day:4, title:'Co. Alpha check-in',           cats:['Co. Alpha'],                start:14.0, end:15.0 },
-  { day:4, title:'Firm weekly wrap',             cats:['Firm Related'],             start:15.5, end:16.5 },
-  { day:5, title:'Fundraising LP breakfast',     cats:['Fundraising','Personal'],   start:8.0,  end:9.5  },
-  { day:6, title:'Co. Delta deep dive',          cats:['Co. Delta'],                start:10.0, end:12.0 },
-];
-
-const THIS_WEEK_LABELS = ['Mon Mar 23','Tue Mar 24','Wed Mar 25','Thu Mar 26','Fri Mar 27','Sat Mar 28','Sun Mar 29'];
-const LAST_WEEK_LABELS = ['Mon Mar 16','Tue Mar 17','Wed Mar 18','Thu Mar 19','Fri Mar 20','Sat Mar 21','Sun Mar 22'];
 
 function deriveHours(evs) {
   const hrs = {};
@@ -380,7 +761,7 @@ function deriveHours(evs) {
   evs.forEach(ev => {
     if (ev.isMaterials) return;
     const cats = getEffectiveCats(ev);
-    if (cats[0] === 'Uncategorized' || cats[0] === 'Unknown') return;
+    if (cats[0] === 'No Category' || cats[0] === 'Unknown') return;
     const dur = ev.end - ev.start;
     cats.forEach(c => { if (categories.includes(c)) hrs[c] += dur; });
   });
@@ -443,7 +824,7 @@ function buildTable() {
   }).join('');
 
   // Unknown count — show in gear badge and maintenance panel
-  const unknownCount = thisWeekEvents.filter(e => !e.isMaterials && getEffectiveCats(e)[0] === 'Unknown').length;
+  const unknownCount = thisWeekEvents.filter(e => !e.isMaterials && !isRuleMatched(e)).length;
   const badge = document.getElementById('unknown-badge');
   const countEl = document.getElementById('unknown-count');
   if (badge) {
@@ -520,7 +901,7 @@ function buildLegend() {
   document.getElementById('cal-legend').innerHTML = [
     ...categories.map(c => `<div class="legend-item"><div class="legend-swatch" style="background:${CAT_COLORS[c]};"></div>${c}</div>`),
     `<div class="legend-item"><div class="legend-swatch" style="background:#bbb;"></div>Unknown</div>`,
-    `<div class="legend-item"><div class="legend-swatch" style="background:#ccc;"></div>Uncategorized</div>`,
+    `<div class="legend-item"><div class="legend-swatch" style="background:#ccc;"></div>No Category</div>`,
   ].join('');
 }
 
@@ -624,9 +1005,13 @@ function getEffectiveCats(ev) {
   const ruleMatch = applyRules(ev);
   const combined = [...(recurMatch || []), ...(ruleMatch || [])];
   const unique = [...new Set(combined)];
-  if (!unique.length) return ['Unknown'];
-  const real = unique.filter(c => c !== 'Uncategorized');
-  return real.length ? real : ['Uncategorized'];
+  if (unique.length) {
+    const real = unique.filter(c => c !== 'No Category');
+    return real.length ? real : ['No Category'];
+  }
+  // Check AI result
+  if (aiResults[key]) return [aiResults[key].cat];
+  return ['Unknown'];
 }
 
 function getCatSource(ev) {
@@ -637,20 +1022,21 @@ function getCatSource(ev) {
   if (recurMatch || ruleMatch) {
     const combined = [...(recurMatch || []), ...(ruleMatch || [])];
     const unique = [...new Set(combined)];
-    const real = unique.filter(c => c !== 'Uncategorized');
+    const real = unique.filter(c => c !== 'No Category');
     return real.length ? 'rule' : 'rule-uncategorized';
   }
+  if (aiResults[key]) return 'ai';
   return 'unknown';
 }
 
 function isRuleMatched(ev) {
   const src = getCatSource(ev);
-  return src === 'rule' || src === 'rule-uncategorized' || src === 'override';
+  return src === 'rule' || src === 'rule-uncategorized' || src === 'override' || src === 'ai';
 }
 
 function getEventBg(ev) {
   const cats = getEffectiveCats(ev);
-  if (cats[0] === 'Uncategorized') return '#ccc';
+  if (cats[0] === 'No Category') return '#ccc';
   if (cats[0] === 'Unknown') return '#bbb';
   if (cats.length === 1) return CAT_COLORS[cats[0]] || '#888';
   return `linear-gradient(to right,${CAT_COLORS[cats[0]]||'#888'} 50%,${CAT_COLORS[cats[1]]||'#888'} 50%)`;
@@ -763,8 +1149,127 @@ function applyRecurring(ev) {
   }
   return matched.length ? [...new Set(matched)] : null;
 }
-const ALL_CATS = [...categories, 'Co. Zeta', 'Uncategorized'];
+const ALL_CATS = [...categories, 'Co. Zeta', 'No Category'];
 let rules = [];
+
+// ── Category descriptions for AI categorization ───────────────────────────────
+const DEFAULT_CAT_DESCRIPTIONS = {
+  'AI': 'Meetings focused on artificial intelligence — AI strategy, AI vendor demos, AI portfolio reviews, AI research briefings, AI tooling evaluation. Usually involves internal team members or AI company representatives.',
+  'Fundraising': 'Meetings related to raising capital — LP calls, investor updates, roadshows, pitch prep, LP dinners, investor day events. Attendees are typically limited partners, investors, or internal team preparing for LP interactions.',
+  'Co. Alpha': 'Meetings with or about Portfolio Company Alpha (replace with real company name). Includes check-ins, product reviews, board calls, site visits. Attendee emails typically from @alpha.com.',
+  'Co. Beta': 'Meetings with or about Portfolio Company Beta (replace with real company name). Includes quarterly reviews, intro calls, diligence meetings. Attendee emails typically from @beta.com.',
+  'Co. Gamma': 'Meetings with or about Portfolio Company Gamma (replace with real company name). Includes syncs, board prep, product reviews. Attendee emails typically from @gamma.com.',
+  'Co. Delta': 'Meetings with or about Portfolio Company Delta (replace with real company name). Includes term sheet reviews, deep dives, follow-ups. Attendee emails typically from @delta.com.',
+  'Co. Epsilon': 'Meetings with or about Portfolio Company Epsilon (replace with real company name). Includes intro calls, first looks, follow-ups. Attendee emails typically from @epsilon.com.',
+  'Co. Zeta': 'Meetings with or about Portfolio Company Zeta (replace with real company name). Attendee emails typically from @zeta.com.',
+  'Deployment': 'Meetings about deploying capital — investment planning, deal pipeline reviews, deployment roadmaps, vendor evaluations for deal flow. Internal team focused on investment execution.',
+  'CEO Searches': 'Meetings related to executive search — CEO candidate interviews, search firm briefings, candidate reviews, shortlist discussions. Involves search firms, HR consultants, and candidates.',
+  'Firm Related': 'Internal firm operations meetings — all-hands, standups, partner lunches, strategy offsites, ops reviews, weekly wraps. All attendees are internal firm employees.',
+  'Personal': 'Personal appointments — medical visits, dental appointments, family events, personal errands. No work colleagues as attendees. Often includes doctor names or personal locations.',
+  'Board Meetings': 'Formal board governance meetings — quarterly board meetings, board prep sessions, board calls. Involves board members, investors, and senior leadership. Distinct from portfolio company board calls.',
+};
+
+let catDescriptions = { ...DEFAULT_CAT_DESCRIPTIONS };
+const aiCache = {}; // Cache AI results to avoid re-calling for same event
+
+async function loadCatDescriptions() {
+  try {
+    const result = await window.storage.get('cat-descriptions');
+    if (result) catDescriptions = { ...DEFAULT_CAT_DESCRIPTIONS, ...JSON.parse(result.value) };
+  } catch(e) {}
+  renderDescriptionsTable();
+}
+
+async function saveCatDescriptions() {
+  try {
+    await window.storage.set('cat-descriptions', JSON.stringify(catDescriptions));
+  } catch(e) {}
+}
+
+// ── AI categorization ─────────────────────────────────────────────────────────
+const AI_CONFIDENCE_THRESHOLD = 0.8;
+
+async function aiCategorize(ev) {
+  const cacheKey = `${ev.title}|${ev.organizer}|${ev.attendees.map(a=>a.email).join(',')}`;
+  if (aiCache[cacheKey]) return aiCache[cacheKey];
+
+  const domains = [...new Set(ev.attendees.map(a => {
+    const m = (a.email||'').match(/@(.+)/);
+    return m ? m[1] : null;
+  }).filter(Boolean))];
+
+  const prompt = `You are categorizing a calendar event for a VC firm executive assistant. Assign this event to the best matching category.
+
+EVENT:
+Title: ${ev.title}
+Organizer: ${ev.organizerName} (${ev.organizer})
+Attendee domains: ${domains.length ? domains.join(', ') : 'none'}
+Attendees: ${ev.attendees.slice(0,5).map(a => a.name).join(', ') || 'none'}
+Body preview: ${ev.bodyPreview || 'none'}
+Duration: ${fmt(ev.end - ev.start)}
+
+CATEGORIES:
+${ALL_CATS.filter(c => c !== 'No Category').map(c => `- ${c}: ${catDescriptions[c] || 'No description'}`).join('\n')}
+- Unknown: Cannot be confidently assigned to any category above.
+
+Respond with ONLY valid JSON in this exact format, nothing else:
+{"category": "Category Name", "confidence": 0.85, "reason": "brief reason"}
+
+Use "Unknown" if confidence would be below 0.5. Be conservative — only assign a category if you are reasonably sure.`;
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 150,
+        messages: [{ role: 'user', content: prompt }],
+      })
+    });
+    const data = await response.json();
+    const text = data.content?.[0]?.text || '{}';
+    const parsed = JSON.parse(text.replace(/```json|```/g, '').trim());
+    const result = {
+      cat: parsed.category || 'Unknown',
+      confidence: parsed.confidence || 0,
+      reason: parsed.reason || '',
+    };
+    aiCache[cacheKey] = result;
+    return result;
+  } catch(e) {
+    return { cat: 'Unknown', confidence: 0, reason: 'API error' };
+  }
+}
+
+// Store AI results per event
+const aiResults = {};
+
+async function runAICategorization() {
+  const unknownEvs = thisWeekEvents.filter(e => !e.isMaterials && !isRuleMatched(e));
+  if (!unknownEvs.length) return;
+
+  const btn = document.getElementById('ai-run-btn');
+  if (btn) { btn.textContent = 'Running...'; btn.disabled = true; }
+
+  for (const ev of unknownEvs) {
+    const key = `${ev.day}|${ev.title}|${ev.start}`;
+    if (aiResults[key]) continue;
+    const result = await aiCategorize(ev);
+    if (result.confidence >= AI_CONFIDENCE_THRESHOLD && result.cat !== 'Unknown') {
+      aiResults[key] = result;
+    }
+  }
+
+  if (btn) { btn.textContent = 'Run AI now'; btn.disabled = false; }
+
+  buildTable();
+  buildHighlightCards('cards-overview');
+  buildHighlightCards('cards-timechart');
+  buildDeltaCards();
+  buildCalendar(thisWeekEvents, THIS_WEEK_LABELS);
+  buildDataTable(thisWeekEvents, DAY_NAMES_THIS);
+}
 
 const RULE_TYPE_LABELS = {
   title_contains: 'Title contains',
@@ -794,21 +1299,21 @@ async function saveRules() {
 function getDefaultRules() {
   const mkRule = (cat, ...conds) => ({ id: Date.now() + Math.random(), conditions: conds.map(([type, value]) => ({ type, value })), cat });
   return [
-    // Uncategorized
-    mkRule('Uncategorized', ['title_contains','flight']),
-    mkRule('Uncategorized', ['title_contains','limo']),
-    mkRule('Uncategorized', ['title_contains','pickup']),
-    mkRule('Uncategorized', ['title_contains','birthday']),
-    mkRule('Uncategorized', ['title_contains','reminder']),
-    mkRule('Uncategorized', ['title_contains','reservation']),
-    mkRule('Uncategorized', ['title_contains','check-in']),
-    mkRule('Uncategorized', ['title_contains','check out']),
-    mkRule('Uncategorized', ['title_contains','hotel']),
-    mkRule('Uncategorized', ['title_contains','inn']),
-    mkRule('Uncategorized', ['title_contains','suites']),
-    mkRule('Uncategorized', ['title_contains','resort']),
-    mkRule('Uncategorized', ['title_contains','Embassy Suites']),
-    mkRule('Uncategorized', ['title_contains','Ritz Carlton']),
+    // No Category
+    mkRule('No Category', ['title_contains','flight']),
+    mkRule('No Category', ['title_contains','limo']),
+    mkRule('No Category', ['title_contains','pickup']),
+    mkRule('No Category', ['title_contains','birthday']),
+    mkRule('No Category', ['title_contains','reminder']),
+    mkRule('No Category', ['title_contains','reservation']),
+    mkRule('No Category', ['title_contains','check-in']),
+    mkRule('No Category', ['title_contains','check out']),
+    mkRule('No Category', ['title_contains','hotel']),
+    mkRule('No Category', ['title_contains','inn']),
+    mkRule('No Category', ['title_contains','suites']),
+    mkRule('No Category', ['title_contains','resort']),
+    mkRule('No Category', ['title_contains','Embassy Suites']),
+    mkRule('No Category', ['title_contains','Ritz Carlton']),
     // Personal
     mkRule('Personal', ['title_contains','Wife']),
     mkRule('Personal', ['title_contains','Child1']),
@@ -905,8 +1410,8 @@ function applyRules(ev) {
 
   const unique = [...new Set(matched)];
   if (!unique.length) return null;
-  const real = unique.filter(c => c !== 'Uncategorized');
-  return real.length ? real : ['Uncategorized'];
+  const real = unique.filter(c => c !== 'No Category');
+  return real.length ? real : ['No Category'];
 }
 
 function renderRulesTable() {
@@ -982,7 +1487,7 @@ function showOverridePopup(ev, el) {
   document.getElementById('popup-attendees').textContent = formatAttendees(ev);
   const sel = document.getElementById('popup-cat-select');
   sel.innerHTML = ALL_CATS.map(c => `<option value="${c}">${c}</option>`).join('');
-  sel.value = cats[0] || 'Uncategorized';
+  sel.value = cats[0] || 'No Category';
 
   // Populate domain dropdown from attendees
   const attendees = getAttendees(ev);
@@ -1042,6 +1547,49 @@ async function saveOverride() {
   buildTable();
 }
 
+function renderDescriptionsTable() {
+  const tbody = document.getElementById('desc-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = ALL_CATS.filter(c => c !== 'No Category').map(c => {
+    const dot = CAT_COLORS[c] ? `<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${CAT_COLORS[c]};margin-right:6px;vertical-align:middle;"></span>` : '';
+    const desc = catDescriptions[c] || '';
+    return `<tr>
+      <td style="white-space:nowrap;">${dot}${c}</td>
+      <td><div id="desc-display-${c.replace(/\./g,'').replace(/ /g,'-')}" style="font-size:12px;color:#555;">${desc}</div>
+          <textarea id="desc-edit-${c.replace(/\./g,'').replace(/ /g,'-')}" style="display:none;width:100%;font-size:12px;padding:6px;border:0.5px solid #ddd;border-radius:4px;resize:vertical;" rows="2">${desc}</textarea>
+      </td>
+      <td style="text-align:center;">
+        <button onclick="editDesc('${c}')" id="desc-btn-${c.replace(/\./g,'').replace(/ /g,'-')}" style="background:none;border:0.5px solid #ddd;border-radius:4px;cursor:pointer;font-size:11px;padding:3px 8px;color:#555;">Edit</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function editDesc(cat) {
+  const id = cat.replace(/\./g,'').replace(/ /g,'-');
+  const display = document.getElementById(`desc-display-${id}`);
+  const textarea = document.getElementById(`desc-edit-${id}`);
+  const btn = document.getElementById(`desc-btn-${id}`);
+  if (btn.textContent === 'Edit') {
+    display.style.display = 'none';
+    textarea.style.display = 'block';
+    textarea.focus();
+    btn.textContent = 'Save';
+    btn.style.background = '#0C447C';
+    btn.style.color = '#fff';
+  } else {
+    const newVal = textarea.value.trim();
+    catDescriptions[cat] = newVal;
+    display.textContent = newVal;
+    display.style.display = 'block';
+    textarea.style.display = 'none';
+    btn.textContent = 'Edit';
+    btn.style.background = 'none';
+    btn.style.color = '#555';
+    saveCatDescriptions();
+  }
+}
+
 function showMTab(name, btn) {
   ['schedule','data','rules'].forEach(t => document.getElementById('mtab-'+t).classList.add('hidden'));
   document.getElementById('mtab-'+name).classList.remove('hidden');
@@ -1059,7 +1607,7 @@ function showTab(name,btn){
 buildLegend();
 
 async function init() {
-  await Promise.all([loadRules(), loadRecurring()]);
+  await Promise.all([loadRules(), loadRecurring(), loadCatDescriptions()]);
   buildHighlightCards('cards-overview');
   buildHighlightCards('cards-timechart');
   buildTable();
@@ -1068,6 +1616,8 @@ async function init() {
   buildBarChart();
   buildCalendar(thisWeekEvents, THIS_WEEK_LABELS);
   buildDataTable(thisWeekEvents, DAY_NAMES_THIS);
+  // Run AI categorization in background after initial render
+  runAICategorization();
 }
 
 init();
