@@ -1220,7 +1220,10 @@ Use "Unknown" if confidence would be below 0.5. Be conservative — only assign 
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 150,
@@ -1228,6 +1231,10 @@ Use "Unknown" if confidence would be below 0.5. Be conservative — only assign 
       })
     });
     const data = await response.json();
+    if (data.error) {
+      console.warn('AI categorize error:', data.error);
+      return { cat: 'Unknown', confidence: 0, reason: data.error.message };
+    }
     const text = data.content?.[0]?.text || '{}';
     const parsed = JSON.parse(text.replace(/```json|```/g, '').trim());
     const result = {
@@ -1238,6 +1245,7 @@ Use "Unknown" if confidence would be below 0.5. Be conservative — only assign 
     aiCache[cacheKey] = result;
     return result;
   } catch(e) {
+    console.warn('AI categorize exception:', e);
     return { cat: 'Unknown', confidence: 0, reason: 'API error' };
   }
 }
