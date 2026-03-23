@@ -73,7 +73,7 @@ tbody tr:hover { background: #f5f5f5; }
     <button class="tab active" onclick="showTab('overview',this)">Overview</button>
     <button class="tab" onclick="showTab('timechart',this)">Time chart</button>
     <div style="flex:1;"></div>
-    <button class="tab" onclick="showTab('maintenance',this)" title="Maintenance" style="font-size:16px;padding:10px 16px;">⚙</button>
+    <button class="tab" onclick="showTab('maintenance',this)" title="Maintenance" style="font-size:16px;padding:10px 16px;position:relative;">⚙<span id="unknown-badge" style="display:none;position:absolute;top:6px;right:6px;background:#ffc107;color:#333;font-size:9px;font-weight:700;border-radius:50%;width:14px;height:14px;line-height:14px;text-align:center;"></span></button>
   </div>
 
   <div id="tab-overview">
@@ -102,6 +102,7 @@ tbody tr:hover { background: #f5f5f5; }
   </div>
 
   <div id="tab-maintenance" class="hidden">
+    <div id="unknown-count" style="margin-bottom:1rem;display:none;"></div>
     <div style="display:flex;gap:0;border-bottom:0.5px solid #e5e5e5;margin-bottom:1.5rem;">
       <button class="tab active" id="mtab-schedule-btn" onclick="showMTab('schedule',this)" style="font-size:13px;padding:8px 20px;">Schedule</button>
       <button class="tab" id="mtab-data-btn" onclick="showMTab('data',this)" style="font-size:13px;padding:8px 20px;">Data</button>
@@ -128,66 +129,73 @@ tbody tr:hover { background: #f5f5f5; }
     </div>
 
     <div id="mtab-rules" class="hidden">
-      <div style="max-width:800px;">
         <div style="font-size:13px;color:#666;margin-bottom:1.25rem;line-height:1.6;">
           Rules are applied to every meeting before AI categorization. All matching rules are applied — a meeting can match multiple rules and receive multiple categories. They persist between sessions.
         </div>
 
-        <div style="background:#f5f5f5;border-radius:12px;padding:1.25rem;margin-bottom:1.5rem;">
-          <div style="font-size:13px;font-weight:500;margin-bottom:1rem;color:#111;">Add new rule</div>
-          <div id="rule-conditions">
-            <!-- Conditions added dynamically -->
-          </div>
-          <div style="display:flex;align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap;">
-            <button onclick="addRuleCondition()" style="padding:5px 12px;border:0.5px solid #ddd;border-radius:6px;font-size:12px;background:#fff;cursor:pointer;color:#555;">+ Add condition</button>
-            <div style="display:flex;align-items:center;gap:8px;margin-left:auto;">
-              <div style="font-size:11px;color:#666;">Assign to</div>
-              <select id="rule-cat" style="padding:8px 10px;border:0.5px solid #ddd;border-radius:6px;font-size:13px;background:#fff;">
-                <option value="Uncategorized">Uncategorized</option>
-              </select>
-              <button onclick="addRule()" style="padding:8px 18px;background:#0C447C;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;">Add rule</button>
+        <!-- Add forms row -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem;">
+          <!-- Add rule form -->
+          <div style="background:#f5f5f5;border-radius:12px;padding:1.25rem;">
+            <div style="font-size:13px;font-weight:500;margin-bottom:1rem;color:#111;">Add new rule</div>
+            <div id="rule-conditions"></div>
+            <div style="display:flex;align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap;">
+              <button onclick="addRuleCondition()" style="padding:5px 12px;border:0.5px solid #ddd;border-radius:6px;font-size:12px;background:#fff;cursor:pointer;color:#555;">+ Add condition</button>
+              <div style="display:flex;align-items:center;gap:8px;margin-left:auto;">
+                <div style="font-size:11px;color:#666;">Assign to</div>
+                <select id="rule-cat" style="padding:8px 10px;border:0.5px solid #ddd;border-radius:6px;font-size:13px;background:#fff;">
+                  <option value="Uncategorized">Uncategorized</option>
+                </select>
+                <button onclick="addRule()" style="padding:8px 18px;background:#0C447C;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;">Add</button>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div class="table-wrap">
-          <table id="rules-table">
-            <thead><tr><th>Conditions (ALL must match)</th><th>Category</th><th style="text-align:center;">Action</th></tr></thead>
-            <tbody id="rules-tbody"></tbody>
-          </table>
-        </div>
-        <div id="rules-empty" style="text-align:center;padding:2rem;color:#999;font-size:13px;display:none;">No rules yet — add one above.</div>
-
-        <div style="margin-top:2rem;">
-          <div style="font-size:15px;font-weight:500;color:#111;margin-bottom:4px;">Recurring meetings</div>
-          <div style="font-size:13px;color:#666;margin-bottom:1.25rem;">Add recurring meetings by title keyword. Any meeting whose title contains the keyword will be assigned the selected category.</div>
-
-          <div style="background:#f5f5f5;border-radius:12px;padding:1.25rem;margin-bottom:1.5rem;">
+          <!-- Add recurring form -->
+          <div style="background:#f5f5f5;border-radius:12px;padding:1.25rem;">
             <div style="font-size:13px;font-weight:500;margin-bottom:1rem;color:#111;">Add recurring meeting</div>
-            <div style="display:grid;grid-template-columns:2fr 1fr auto;gap:10px;align-items:end;">
+            <div style="display:flex;flex-direction:column;gap:8px;">
               <div>
                 <div style="font-size:11px;color:#666;margin-bottom:4px;">Meeting title (or keyword)</div>
                 <input id="recur-title" type="text" placeholder="e.g. Bi-Weekly Update, Investment Team" style="width:100%;padding:8px 10px;border:0.5px solid #ddd;border-radius:6px;font-size:13px;" />
               </div>
-              <div>
-                <div style="font-size:11px;color:#666;margin-bottom:4px;">Category</div>
-                <select id="recur-cat" style="width:100%;padding:8px 10px;border:0.5px solid #ddd;border-radius:6px;font-size:13px;background:#fff;">
-                  <option value="Uncategorized">Uncategorized</option>
-                </select>
+              <div style="display:flex;gap:8px;align-items:flex-end;">
+                <div style="flex:1;">
+                  <div style="font-size:11px;color:#666;margin-bottom:4px;">Category</div>
+                  <select id="recur-cat" style="width:100%;padding:8px 10px;border:0.5px solid #ddd;border-radius:6px;font-size:13px;background:#fff;">
+                    <option value="Uncategorized">Uncategorized</option>
+                  </select>
+                </div>
+                <button onclick="addRecurring()" style="padding:8px 18px;background:#0C447C;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;height:36px;">Add</button>
               </div>
-              <button onclick="addRecurring()" style="padding:8px 18px;background:#0C447C;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;height:36px;">Add</button>
             </div>
           </div>
-
-          <div class="table-wrap">
-            <table>
-              <thead><tr><th>Meeting title / keyword</th><th>Category</th><th style="text-align:center;">Action</th></tr></thead>
-              <tbody id="recur-tbody"></tbody>
-            </table>
-          </div>
-          <div id="recur-empty" style="text-align:center;padding:2rem;color:#999;font-size:13px;">No recurring meetings added yet.</div>
         </div>
-      </div>
+
+        <!-- Tables row -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;">
+          <!-- Rules table -->
+          <div>
+            <div class="table-wrap">
+              <table id="rules-table">
+                <thead><tr><th>Conditions (ALL must match)</th><th>Category</th><th style="text-align:center;">Action</th></tr></thead>
+                <tbody id="rules-tbody"></tbody>
+              </table>
+            </div>
+            <div id="rules-empty" style="text-align:center;padding:2rem;color:#999;font-size:13px;display:none;">No rules yet — add one above.</div>
+          </div>
+
+          <!-- Recurring table -->
+          <div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Meeting title / keyword</th><th>Category</th><th style="text-align:center;">Action</th></tr></thead>
+                <tbody id="recur-tbody"></tbody>
+              </table>
+            </div>
+            <div id="recur-empty" style="text-align:center;padding:2rem;color:#999;font-size:13px;">No recurring meetings added yet.</div>
+          </div>
+        </div>
     </div>
   </div>
 </div>
@@ -372,7 +380,7 @@ function deriveHours(evs) {
   evs.forEach(ev => {
     if (ev.isMaterials) return;
     const cats = getEffectiveCats(ev);
-    if (cats[0] === 'Uncategorized') return;
+    if (cats[0] === 'Uncategorized' || cats[0] === 'Unknown') return;
     const dur = ev.end - ev.start;
     cats.forEach(c => { if (categories.includes(c)) hrs[c] += dur; });
   });
@@ -433,6 +441,29 @@ function buildTable() {
     const cls=d>0?'change-pos':d<0?'change-neg':'change-zero';
     return `<tr><td>${c}</td><td>${fmt(lw)}</td><td>${fmt(tw)}</td><td class="${cls}">${d>0?'+':''}${fmt(d)}</td></tr>`;
   }).join('');
+
+  // Unknown count — show in gear badge and maintenance panel
+  const unknownCount = thisWeekEvents.filter(e => !e.isMaterials && getEffectiveCats(e)[0] === 'Unknown').length;
+  const badge = document.getElementById('unknown-badge');
+  const countEl = document.getElementById('unknown-count');
+  if (badge) {
+    if (unknownCount > 0) {
+      badge.textContent = '!';
+      badge.style.display = 'block';
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+  if (countEl) {
+    if (unknownCount > 0) {
+      countEl.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;background:#fff3cd;border:0.5px solid #ffc107;border-radius:6px;padding:6px 12px;font-size:12px;color:#856404;">
+        <span style="font-weight:600;">?</span> ${unknownCount} event${unknownCount>1?'s':''} still unknown this week — go to Schedule to categorize
+      </span>`;
+      countEl.style.display = 'block';
+    } else {
+      countEl.style.display = 'none';
+    }
+  }
 }
 
 function buildInsights() {
@@ -486,9 +517,11 @@ function buildDeltaCards() {
 }
 
 function buildLegend() {
-  document.getElementById('cal-legend').innerHTML = categories.map(c=>
-    `<div class="legend-item"><div class="legend-swatch" style="background:${CAT_COLORS[c]};"></div>${c}</div>`
-  ).join('');
+  document.getElementById('cal-legend').innerHTML = [
+    ...categories.map(c => `<div class="legend-item"><div class="legend-swatch" style="background:${CAT_COLORS[c]};"></div>${c}</div>`),
+    `<div class="legend-item"><div class="legend-swatch" style="background:#bbb;"></div>Unknown</div>`,
+    `<div class="legend-item"><div class="legend-swatch" style="background:#ccc;"></div>Uncategorized</div>`,
+  ].join('');
 }
 
 function buildCalendar(evs, dayLabels) {
@@ -585,30 +618,41 @@ const DAY_NAMES_THIS = ['Mon Mar 23','Tue Mar 24','Wed Mar 25','Thu Mar 26','Fri
 const DAY_NAMES_LAST = ['Mon Mar 16','Tue Mar 17','Wed Mar 18','Thu Mar 19','Fri Mar 20','Sat Mar 21','Sun Mar 22'];
 
 function getEffectiveCats(ev) {
-  // Check one-time session override first
   const key = `${ev.day}|${ev.title}|${ev.start}`;
   if (oneTimeOverrides[key]) return oneTimeOverrides[key];
   const recurMatch = applyRecurring(ev);
   const ruleMatch = applyRules(ev);
   const combined = [...(recurMatch || []), ...(ruleMatch || [])];
   const unique = [...new Set(combined)];
-  if (!unique.length) return ev.cats;
+  if (!unique.length) return ['Unknown'];
   const real = unique.filter(c => c !== 'Uncategorized');
   return real.length ? real : ['Uncategorized'];
 }
 
-function isRuleMatched(ev) {
+function getCatSource(ev) {
   const key = `${ev.day}|${ev.title}|${ev.start}`;
-  if (oneTimeOverrides[key]) return true;
+  if (oneTimeOverrides[key]) return 'override';
   const recurMatch = applyRecurring(ev);
   const ruleMatch = applyRules(ev);
-  return !!(recurMatch || ruleMatch);
+  if (recurMatch || ruleMatch) {
+    const combined = [...(recurMatch || []), ...(ruleMatch || [])];
+    const unique = [...new Set(combined)];
+    const real = unique.filter(c => c !== 'Uncategorized');
+    return real.length ? 'rule' : 'rule-uncategorized';
+  }
+  return 'unknown';
+}
+
+function isRuleMatched(ev) {
+  const src = getCatSource(ev);
+  return src === 'rule' || src === 'rule-uncategorized' || src === 'override';
 }
 
 function getEventBg(ev) {
   const cats = getEffectiveCats(ev);
-  if(cats[0] === 'Uncategorized') return '#ccc';
-  if(cats.length===1) return CAT_COLORS[cats[0]] || '#888';
+  if (cats[0] === 'Uncategorized') return '#ccc';
+  if (cats[0] === 'Unknown') return '#bbb';
+  if (cats.length === 1) return CAT_COLORS[cats[0]] || '#888';
   return `linear-gradient(to right,${CAT_COLORS[cats[0]]||'#888'} 50%,${CAT_COLORS[cats[1]]||'#888'} 50%)`;
 }
 
@@ -995,6 +1039,7 @@ async function saveOverride() {
   const week = document.querySelector('#mtab-schedule .week-btn.active')?.textContent?.includes('Last') ? 'last' : 'this';
   buildCalendar(week === 'last' ? lastWeekEvents : thisWeekEvents, week === 'last' ? LAST_WEEK_LABELS : THIS_WEEK_LABELS);
   buildDataTable(week === 'last' ? lastWeekEvents : thisWeekEvents, week === 'last' ? DAY_NAMES_LAST : DAY_NAMES_THIS);
+  buildTable();
 }
 
 function showMTab(name, btn) {
